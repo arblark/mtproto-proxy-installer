@@ -19,12 +19,45 @@ One-script automated MTProto proxy setup for Telegram using [mtg](https://github
 
 ## Quick Start / Быстрый старт
 
+### Установка на свежий VPS/VDS (одна команда)
+
+Подключитесь к серверу по SSH и выполните:
+
 ```bash
+curl -sSL https://raw.githubusercontent.com/arblark/mtproto-proxy-installer/main/mtproto-setup.sh -o mtproto-setup.sh && chmod +x mtproto-setup.sh && sudo ./mtproto-setup.sh
+```
+
+Или через `wget`:
+
+```bash
+wget -qO mtproto-setup.sh https://raw.githubusercontent.com/arblark/mtproto-proxy-installer/main/mtproto-setup.sh && chmod +x mtproto-setup.sh && sudo ./mtproto-setup.sh
+```
+
+### Пошаговая установка
+
+1. Купите VPS/VDS (Debian, Ubuntu, CentOS — любой Linux)
+2. Подключитесь к серверу: `ssh root@IP_СЕРВЕРА`
+3. Скачайте и запустите скрипт:
+
+```bash
+curl -sSL https://raw.githubusercontent.com/arblark/mtproto-proxy-installer/main/mtproto-setup.sh -o mtproto-setup.sh
 chmod +x mtproto-setup.sh
 sudo ./mtproto-setup.sh
 ```
 
-Скрипт задаст вопросы — можно просто нажимать Enter для значений по умолчанию.
+4. Ответьте на вопросы (или нажимайте Enter для значений по умолчанию)
+5. Скопируйте готовую ссылку `https://t.me/proxy?...` и откройте её в Telegram
+
+### Ручной способ (если клонируете репозиторий)
+
+```bash
+git clone https://github.com/arblark/mtproto-proxy-installer.git
+cd mtproto-proxy-installer
+chmod +x mtproto-setup.sh
+sudo ./mtproto-setup.sh
+```
+
+Скрипт сам установит Docker, обновит систему и настроит всё автоматически. На выходе — готовая ссылка для Telegram.
 
 ## Configuration / Параметры
 
