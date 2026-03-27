@@ -8,6 +8,7 @@ set -e
 
 CONFIG_DIR="/etc/mtproto-proxy"
 CONFIG_FILE="${CONFIG_DIR}/config"
+LOG_FILE="/var/log/mtproto-setup.log"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -15,6 +16,8 @@ YELLOW='\033[1;33m'
 CYAN='\033[0;36m'
 BOLD='\033[1m'
 NC='\033[0m'
+
+AUTO_MODE=false
 
 print_header() {
     echo ""
@@ -47,6 +50,11 @@ prompt_value() {
     local description="$2"
     local default="$3"
 
+    if [[ "$AUTO_MODE" == true ]]; then
+        eval "$varname=\"$default\""
+        return
+    fi
+
     echo -en "${YELLOW}${description}${NC} [${GREEN}${default}${NC}]: "
     read -r input
     input="${input:-$default}"
@@ -56,6 +64,11 @@ prompt_value() {
 prompt_yes_no() {
     local prompt_text="$1"
     local default="${2:-y}"
+
+    if [[ "$AUTO_MODE" == true ]]; then
+        [[ "$default" == "y" ]]
+        return
+    fi
 
     if [[ "$default" == "y" ]]; then
         echo -en "${YELLOW}${prompt_text}${NC} [${GREEN}Y/n${NC}]: "
@@ -151,6 +164,125 @@ wait_for_container() {
     return 1
 }
 
+check_port_available() {
+    local port="$1"
+    local pid_info
+
+    if command -v ss &>/dev/null; then
+        pid_info=$(ss -tulpn 2>/dev/null | grep ":${port} " || true)
+    elif command -v netstat &>/dev/null; then
+        pid_info=$(netstat -tulpn 2>/dev/null | grep ":${port} " || true)
+    else
+        return 0
+    fi
+
+    if [[ -n "$pid_info" ]]; then
+        echo -e "${RED}✗ Порт ${port} уже занят:${NC}"
+        echo -e "  ${YELLOW}${pid_info}${NC}"
+        echo ""
+
+        if [[ "$AUTO_MODE" == true ]]; then
+            echo -e "${RED}Ошибка: порт ${port} занят (авто-режим, прерываю)${NC}"
+            exit 1
+        fi
+
+        if prompt_yes_no "  Продолжить установку на этот порт?" "n"; then
+            return 0
+        fi
+
+        echo -en "${YELLOW}  Введите другой порт: ${NC}"
+        read -r new_port
+        if [[ -z "$new_port" ]]; then
+            echo -e "${RED}Порт не указан, прерываю${NC}"
+            exit 1
+        fi
+        EXT_PORT="$new_port"
+        check_port_available "$EXT_PORT"
+    fi
+}
+
+validate_domain() {
+    local domain="$1"
+
+    if command -v dig &>/dev/null; then
+        if ! dig +short "$domain" A 2>/dev/null | grep -qE '^[0-9]+\.' ; then
+            echo -e "${YELLOW}⚠ Домен '${domain}' не резолвится. Fake-TLS может не работать.${NC}"
+            if [[ "$AUTO_MODE" == false ]]; then
+                if ! prompt_yes_no "  Продолжить с этим доменом?" "y"; then
+                    prompt_value FAKE_DOMAIN "  Введите другой домен" "apple.com"
+                    validate_domain "$FAKE_DOMAIN"
+                fi
+            fi
+        else
+            echo -e "${GREEN}✓ Домен '${domain}' резолвится${NC}"
+        fi
+    elif command -v nslookup &>/dev/null; then
+        if ! nslookup "$domain" 8.8.8.8 &>/dev/null; then
+            echo -e "${YELLOW}⚠ Домен '${domain}' не резолвится. Fake-TLS может не работать.${NC}"
+            if [[ "$AUTO_MODE" == false ]]; then
+                if ! prompt_yes_no "  Продолжить с этим доменом?" "y"; then
+                    prompt_value FAKE_DOMAIN "  Введите другой домен" "apple.com"
+                    validate_domain "$FAKE_DOMAIN"
+                fi
+            fi
+        else
+            echo -e "${GREEN}✓ Домен '${domain}' резолвится${NC}"
+        fi
+    elif command -v host &>/dev/null; then
+        if ! host "$domain" &>/dev/null; then
+            echo -e "${YELLOW}⚠ Домен '${domain}' не резолвится. Fake-TLS может не работать.${NC}"
+        else
+            echo -e "${GREEN}✓ Домен '${domain}' резолвится${NC}"
+        fi
+    fi
+}
+
+verify_proxy_connection() {
+    local port="$1"
+    local max_attempts=5
+    local attempt=0
+
+    echo -e "${CYAN}➜ Проверка доступности порта ${port}...${NC}"
+    while (( attempt < max_attempts )); do
+        if (echo >/dev/tcp/127.0.0.1/"$port") 2>/dev/null; then
+            echo -e "${GREEN}✓ Порт ${port} отвечает — прокси работает${NC}"
+            return 0
+        fi
+        (( attempt++ ))
+        sleep 1
+    done
+
+    echo -e "${YELLOW}⚠ Порт ${port} не отвечает локально (может быть нормально при NAT)${NC}"
+    return 0
+}
+
+install_qrencode() {
+    if command -v qrencode &>/dev/null; then
+        return 0
+    fi
+
+    if command -v apt-get &>/dev/null; then
+        apt-get install -y -qq qrencode &>/dev/null && return 0
+    elif command -v yum &>/dev/null; then
+        yum install -y -q qrencode &>/dev/null && return 0
+    elif command -v dnf &>/dev/null; then
+        dnf install -y -q qrencode &>/dev/null && return 0
+    fi
+
+    return 1
+}
+
+print_qr_code() {
+    local link="$1"
+
+    if install_qrencode; then
+        echo -e "  ${BOLD}QR-код (наведите камеру телефона):${NC}"
+        echo ""
+        qrencode -t ANSIUTF8 "$link"
+        echo ""
+    fi
+}
+
 open_firewall_port() {
     local port="$1"
 
@@ -207,13 +339,90 @@ print_result() {
     echo -e "  ${GREEN}${tg_link}${NC}"
     echo ""
     echo -e "${CYAN}──────────────────────────────────────────────────${NC}"
+
+    print_qr_code "$tme_link"
+
+    echo -e "${CYAN}──────────────────────────────────────────────────${NC}"
     echo -e "  ${BOLD}Полезные команды:${NC}"
-    echo -e "  Статус:     docker ps | grep ${CONTAINER_NAME}"
-    echo -e "  Логи:       docker logs -f ${CONTAINER_NAME}"
-    echo -e "  Рестарт:    docker restart ${CONTAINER_NAME}"
+    echo -e "  Статус:     $0 --status"
+    echo -e "  Ссылки:     $0 --show"
     echo -e "  Обновить:   $0 --update"
     echo -e "  Удалить:    $0 --uninstall"
     echo ""
+}
+
+# ─── Команда: --status ───────────────────────────────────────
+
+do_status() {
+    check_root
+
+    if ! load_config; then
+        echo -e "${RED}MTProto Proxy не установлен (конфигурация не найдена)${NC}"
+        exit 1
+    fi
+
+    local name="${CONTAINER_NAME:-mtproto}"
+
+    echo ""
+    echo -e "${BOLD}MTProto Proxy — Статус${NC}"
+    echo -e "${CYAN}──────────────────────────────────────────────────${NC}"
+
+    if docker ps --format '{{.Names}}' 2>/dev/null | grep -qw "$name"; then
+        local status_line
+        status_line=$(docker ps --format 'table {{.Status}}\t{{.Ports}}' --filter "name=^${name}$" | tail -1)
+        echo -e "  ${BOLD}Состояние:${NC}   ${GREEN}работает${NC}"
+        echo -e "  ${BOLD}Детали:${NC}      ${status_line}"
+    elif docker ps -a --format '{{.Names}}' 2>/dev/null | grep -qw "$name"; then
+        local status_line
+        status_line=$(docker ps -a --format '{{.Status}}' --filter "name=^${name}$" | tail -1)
+        echo -e "  ${BOLD}Состояние:${NC}   ${RED}остановлен${NC}"
+        echo -e "  ${BOLD}Детали:${NC}      ${status_line}"
+    else
+        echo -e "  ${BOLD}Состояние:${NC}   ${RED}контейнер не найден${NC}"
+    fi
+
+    echo -e "  ${BOLD}Сервер:${NC}      ${SERVER_IP}"
+    echo -e "  ${BOLD}Порт:${NC}        ${EXT_PORT}"
+    echo -e "  ${BOLD}Секрет:${NC}      ${SECRET}"
+    echo -e "  ${BOLD}Домен:${NC}       ${FAKE_DOMAIN}"
+    echo -e "  ${BOLD}DNS:${NC}         ${DNS_SERVER}"
+    echo -e "  ${BOLD}Контейнер:${NC}   ${name}"
+
+    echo ""
+    echo -e "${CYAN}──────────────────────────────────────────────────${NC}"
+    echo -e "  ${BOLD}Ссылки:${NC}"
+    echo -e "  ${GREEN}https://t.me/proxy?server=${SERVER_IP}&port=${EXT_PORT}&secret=${SECRET}${NC}"
+    echo -e "  ${GREEN}tg://proxy?server=${SERVER_IP}&port=${EXT_PORT}&secret=${SECRET}${NC}"
+    echo ""
+    exit 0
+}
+
+# ─── Команда: --show ─────────────────────────────────────────
+
+do_show() {
+    check_root
+
+    if ! load_config; then
+        echo -e "${RED}MTProto Proxy не установлен (конфигурация не найдена)${NC}"
+        exit 1
+    fi
+
+    local tme_link="https://t.me/proxy?server=${SERVER_IP}&port=${EXT_PORT}&secret=${SECRET}"
+    local tg_link="tg://proxy?server=${SERVER_IP}&port=${EXT_PORT}&secret=${SECRET}"
+
+    echo ""
+    echo -e "${BOLD}MTProto Proxy — Ссылки для подключения${NC}"
+    echo -e "${CYAN}──────────────────────────────────────────────────${NC}"
+    echo ""
+    echo -e "  ${GREEN}${tme_link}${NC}"
+    echo ""
+    echo -e "  ${GREEN}${tg_link}${NC}"
+    echo ""
+    echo -e "${CYAN}──────────────────────────────────────────────────${NC}"
+
+    print_qr_code "$tme_link"
+
+    exit 0
 }
 
 # ─── Команда: --uninstall ────────────────────────────────────
@@ -291,6 +500,7 @@ do_update() {
         "$SECRET"
 
     if wait_for_container "$name"; then
+        verify_proxy_connection "$EXT_PORT"
         print_result
     else
         exit 1
@@ -307,13 +517,33 @@ case "${1:-}" in
     --update|-U)
         do_update
         ;;
+    --status|-s)
+        do_status
+        ;;
+    --show)
+        do_show
+        ;;
+    --auto|-a)
+        AUTO_MODE=true
+        ;;
     --help|-h)
         echo "Использование: $0 [ОПЦИЯ]"
         echo ""
-        echo "  (без опций)    Установка / переустановка MTProto Proxy"
-        echo "  --update, -U   Обновить образ и перезапустить контейнер"
+        echo "  (без опций)      Интерактивная установка / переустановка"
+        echo "  --auto, -a       Установка без вопросов (значения по умолчанию или из env)"
+        echo "  --update, -U     Обновить образ и перезапустить контейнер"
         echo "  --uninstall, -u  Удалить контейнер, образ и конфигурацию"
-        echo "  --help, -h     Показать эту справку"
+        echo "  --status, -s     Показать статус прокси"
+        echo "  --show           Показать ссылки для подключения и QR-код"
+        echo "  --help, -h       Показать эту справку"
+        echo ""
+        echo "Переменные окружения (для --auto):"
+        echo "  MT_SERVER_IP     IP сервера (по умолчанию: автоопределение)"
+        echo "  MT_PORT          Внешний порт (по умолчанию: 443)"
+        echo "  MT_DOMAIN        Домен маскировки (по умолчанию: apple.com)"
+        echo "  MT_DNS           DNS сервер (по умолчанию: 1.1.1.1)"
+        echo "  MT_IP_MODE       Режим IP (по умолчанию: prefer-ipv4)"
+        echo "  MT_CONTAINER     Имя контейнера (по умолчанию: mtproto)"
         exit 0
         ;;
 esac
@@ -324,6 +554,11 @@ print_header
 check_root
 
 SERVER_IP=$(detect_ip)
+
+if [[ "$AUTO_MODE" == true ]]; then
+    echo -e "${CYAN}Режим автоматической установки (--auto)${NC}"
+fi
+
 echo -e "${CYAN}Обнаруженный IP сервера: ${GREEN}${SERVER_IP}${NC}"
 
 SAVED_SECRET=""
@@ -335,19 +570,32 @@ if load_config; then
 fi
 
 echo ""
-echo -e "${BOLD}Настройка параметров прокси (Enter — значение по умолчанию):${NC}"
-echo -e "${CYAN}──────────────────────────────────────────────────${NC}"
+if [[ "$AUTO_MODE" == false ]]; then
+    echo -e "${BOLD}Настройка параметров прокси (Enter — значение по умолчанию):${NC}"
+    echo -e "${CYAN}──────────────────────────────────────────────────${NC}"
+fi
 
-prompt_value SERVER_IP      "  IP сервера"                      "$SERVER_IP"
-prompt_value EXT_PORT       "  Внешний порт"                    "${EXT_PORT:-443}"
+prompt_value SERVER_IP      "  IP сервера"                      "${MT_SERVER_IP:-$SERVER_IP}"
+prompt_value EXT_PORT       "  Внешний порт"                    "${MT_PORT:-${EXT_PORT:-443}}"
 prompt_value INTERNAL_PORT  "  Внутренний порт контейнера"      "${INTERNAL_PORT:-3128}"
-prompt_value FAKE_DOMAIN    "  Домен маскировки (fake-tls)"     "${FAKE_DOMAIN:-apple.com}"
-prompt_value DNS_SERVER     "  DNS сервер"                      "${DNS_SERVER:-1.1.1.1}"
-prompt_value IP_PREFER      "  Режим IP (prefer-ipv4/prefer-ipv6/only-ipv4/only-ipv6)" "${IP_PREFER:-prefer-ipv4}"
-prompt_value CONTAINER_NAME "  Имя контейнера"                  "${CONTAINER_NAME:-mtproto}"
+prompt_value FAKE_DOMAIN    "  Домен маскировки (fake-tls)"     "${MT_DOMAIN:-${FAKE_DOMAIN:-apple.com}}"
+prompt_value DNS_SERVER     "  DNS сервер"                      "${MT_DNS:-${DNS_SERVER:-1.1.1.1}}"
+prompt_value IP_PREFER      "  Режим IP (prefer-ipv4/prefer-ipv6/only-ipv4/only-ipv6)" "${MT_IP_MODE:-${IP_PREFER:-prefer-ipv4}}"
+prompt_value CONTAINER_NAME "  Имя контейнера"                  "${MT_CONTAINER:-${CONTAINER_NAME:-mtproto}}"
 
 echo ""
 echo -e "${CYAN}──────────────────────────────────────────────────${NC}"
+
+# ─── Проверка порта ──────────────────────────────────────────
+
+check_port_available "$EXT_PORT"
+
+# ─── Валидация домена ────────────────────────────────────────
+
+validate_domain "$FAKE_DOMAIN"
+
+# ─── Обновление системы ──────────────────────────────────────
+
 echo -e "${CYAN}➜ Обновление системы...${NC}"
 if command -v apt-get &>/dev/null; then
     apt-get update -qq && apt-get upgrade -y -qq
@@ -410,7 +658,15 @@ if ! wait_for_container "$CONTAINER_NAME"; then
     exit 1
 fi
 
+# ─── Проверка соединения ─────────────────────────────────────
+
+verify_proxy_connection "$EXT_PORT"
+
+# ─── Файрвол ─────────────────────────────────────────────────
+
 open_firewall_port "$EXT_PORT"
+
+# ─── Сохранение конфигурации ─────────────────────────────────
 
 save_config
 echo -e "${GREEN}✓ Конфигурация сохранена в ${CONFIG_FILE}${NC}"
