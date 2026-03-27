@@ -6,6 +6,12 @@ One-script automated MTProto proxy setup for Telegram using [mtg](https://github
 
 ---
 
+> **Не хотите разбираться с консолью?** Есть Telegram-бот, который полностью установит и настроит MTProto прокси на вашем сервере — без SSH, без команд, всё через бот. Ссылку на бота можно получить у автора: [@arblark](https://t.me/arblark)
+>
+> **Вопросы, помощь, предложения** — пишите в Telegram: [@arblark](https://t.me/arblark)
+
+---
+
 ## Features / Возможности
 
 - **One command** — установка за одну команду на любом свежем VDS/VPS
