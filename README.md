@@ -13,9 +13,11 @@ One-script automated MTProto proxy setup for Telegram using [mtg](https://github
 - **Fake-TLS** — маскировка трафика под HTTPS (обход блокировок DPI)
 - **Auto-detect IP** — автоопределение внешнего IP сервера
 - **Docker** — всё работает в контейнере с `--restart always`
-- **UFW support** — автоматическое открытие порта в файрволе
-- **Ready-to-use link** — на выходе готовая `tg://proxy` ссылка для Telegram
-- **Multi-distro** — поддержка Debian, Ubuntu, CentOS, Fedora, и других
+- **Firewall support** — автоматическое открытие порта (UFW + firewalld)
+- **Ready-to-use links** — на выходе готовые `https://t.me/proxy` и `tg://proxy` ссылки
+- **Secret persistence** — секрет сохраняется между запусками, клиентские ссылки не ломаются
+- **Update & Uninstall** — встроенные команды обновления и удаления
+- **Multi-distro** — поддержка Debian, Ubuntu, CentOS, Fedora и других
 
 ## Quick Start / Быстрый старт
 
@@ -46,9 +48,9 @@ sudo ./mtproto-setup.sh
 ```
 
 4. Ответьте на вопросы (или нажимайте Enter для значений по умолчанию)
-5. Скопируйте готовую ссылку `https://t.me/proxy?...` и откройте её в Telegram
+5. Скопируйте готовую ссылку и откройте её в Telegram
 
-### Ручной способ (если клонируете репозиторий)
+### Ручной способ (клонирование репозитория)
 
 ```bash
 git clone https://github.com/arblark/mtproto-proxy-installer.git
@@ -71,6 +73,8 @@ sudo ./mtproto-setup.sh
 | IP mode | `prefer-ipv4` | `prefer-ipv4` / `prefer-ipv6` / `only-ipv4` / `only-ipv6` |
 | Container name | `mtproto` | Имя Docker-контейнера |
 
+При повторном запуске скрипт подставляет значения из предыдущей конфигурации (`/etc/mtproto-proxy/config`).
+
 ## Output / Результат
 
 После установки скрипт выведет:
@@ -82,20 +86,32 @@ sudo ./mtproto-setup.sh
   Домен:       apple.com
   DNS:         1.1.1.1
 
-  Ссылка для подключения в Telegram:
+  Ссылки для подключения в Telegram:
 
   https://t.me/proxy?server=203.0.113.1&port=443&secret=ee...
+  tg://proxy?server=203.0.113.1&port=443&secret=ee...
 ```
 
 ## Management / Управление
 
 ```bash
+sudo ./mtproto-setup.sh              # установка / переустановка
+sudo ./mtproto-setup.sh --update     # обновить образ и перезапустить
+sudo ./mtproto-setup.sh --uninstall  # удалить контейнер, образ, конфигурацию
+sudo ./mtproto-setup.sh --help       # справка
+```
+
+Ручные Docker-команды:
+
+```bash
 docker ps | grep mtproto        # статус
 docker logs -f mtproto          # логи
 docker restart mtproto          # перезапуск
-docker stop mtproto             # остановка
-docker rm -f mtproto            # удаление
 ```
+
+## Secret Persistence / Сохранение секрета
+
+Секрет и все параметры сохраняются в `/etc/mtproto-proxy/config`. При повторном запуске скрипт предложит переиспользовать существующий секрет — клиентские ссылки не сломаются. Новый секрет генерируется только если вы сменили домен маскировки или явно отказались от старого.
 
 ## Requirements / Требования
 
