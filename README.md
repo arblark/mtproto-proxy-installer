@@ -90,7 +90,8 @@ sudo ./mtproto-setup.sh
 ```bash
 sudo ./mtproto-setup.sh              # интерактивная установка
 sudo ./mtproto-setup.sh --auto       # установка без вопросов
-sudo ./mtproto-setup.sh --status     # статус прокси (работает / остановлен)
+sudo ./mtproto-setup.sh --status     # статус + диагностика связи с Telegram
+sudo ./mtproto-setup.sh --doctor     # диагностика (проверка Telegram DC, DNS, TLS)
 sudo ./mtproto-setup.sh --show       # показать ссылки и QR-код
 sudo ./mtproto-setup.sh --update     # обновить образ и перезапустить
 sudo ./mtproto-setup.sh --uninstall  # удалить всё
@@ -139,6 +140,7 @@ sudo MT_PORT=8443 MT_DOMAIN=google.com MT_DNS=8.8.8.8 ./mtproto-setup.sh --auto
 - **Домен** — проверяется DNS-резолв домена маскировки (`dig`/`nslookup`/`host`). Если домен не резолвится — предупреждение.
 - **Контейнер** — retry-loop с 10 попытками вместо фиксированной задержки.
 - **Соединение** — после запуска проверяется доступность порта локально.
+- **Doctor** — встроенная диагностика mtg: проверка связи с Telegram DC, валидность DNS/SNI, time-skew (`--doctor` или автоматически в `--status`).
 
 ## Requirements / Требования
 

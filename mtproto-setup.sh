@@ -9,6 +9,7 @@ set -e
 CONFIG_DIR="/etc/mtproto-proxy"
 CONFIG_FILE="${CONFIG_DIR}/config"
 LOG_FILE="/var/log/mtproto-setup.log"
+MTG_IMAGE="nineseconds/mtg:2"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -141,7 +142,7 @@ stop_existing_container() {
 
 generate_secret() {
     local domain="$1"
-    docker run --rm nineseconds/mtg generate-secret --hex "$domain" 2>/dev/null
+    docker run --rm "$MTG_IMAGE" generate-secret --hex "$domain" 2>/dev/null
 }
 
 wait_for_container() {
@@ -344,11 +345,46 @@ print_result() {
 
     echo -e "${CYAN}──────────────────────────────────────────────────${NC}"
     echo -e "  ${BOLD}Полезные команды:${NC}"
-    echo -e "  Статус:     $0 --status"
-    echo -e "  Ссылки:     $0 --show"
-    echo -e "  Обновить:   $0 --update"
-    echo -e "  Удалить:    $0 --uninstall"
+    echo -e "  Статус:       $0 --status"
+    echo -e "  Диагностика:  $0 --doctor"
+    echo -e "  Ссылки:       $0 --show"
+    echo -e "  Обновить:     $0 --update"
+    echo -e "  Удалить:      $0 --uninstall"
     echo ""
+}
+
+run_doctor() {
+    local name="$1"
+
+    if ! docker ps --format '{{.Names}}' 2>/dev/null | grep -qw "$name"; then
+        echo -e "${YELLOW}⚠ Контейнер '${name}' не запущен — doctor недоступен${NC}"
+        return 1
+    fi
+
+    echo ""
+    echo -e "${BOLD}Диагностика mtg (doctor):${NC}"
+    echo -e "${CYAN}──────────────────────────────────────────────────${NC}"
+    docker exec "$name" /mtg doctor --simple-run \
+        -n "$DNS_SERVER" \
+        -i "$IP_PREFER" \
+        "0.0.0.0:${INTERNAL_PORT}" \
+        "$SECRET" 2>&1 || true
+    echo -e "${CYAN}──────────────────────────────────────────────────${NC}"
+}
+
+# ─── Команда: --doctor ──────────────────────────────────────
+
+do_doctor() {
+    check_root
+
+    if ! load_config; then
+        echo -e "${RED}MTProto Proxy не установлен (конфигурация не найдена)${NC}"
+        exit 1
+    fi
+
+    local name="${CONTAINER_NAME:-mtproto}"
+    run_doctor "$name"
+    exit 0
 }
 
 # ─── Команда: --status ───────────────────────────────────────
@@ -393,6 +429,11 @@ do_status() {
     echo -e "  ${BOLD}Ссылки:${NC}"
     echo -e "  ${GREEN}https://t.me/proxy?server=${SERVER_IP}&port=${EXT_PORT}&secret=${SECRET}${NC}"
     echo -e "  ${GREEN}tg://proxy?server=${SERVER_IP}&port=${EXT_PORT}&secret=${SECRET}${NC}"
+
+    if docker ps --format '{{.Names}}' 2>/dev/null | grep -qw "$name"; then
+        run_doctor "$name"
+    fi
+
     echo ""
     exit 0
 }
@@ -452,8 +493,8 @@ do_uninstall() {
         close_firewall_port "$port"
     fi
 
-    if prompt_yes_no "  Удалить Docker-образ nineseconds/mtg?" "n"; then
-        docker rmi nineseconds/mtg &>/dev/null || true
+    if prompt_yes_no "  Удалить Docker-образ ${MTG_IMAGE}?" "n"; then
+        docker rmi "$MTG_IMAGE" &>/dev/null || true
         echo -e "${GREEN}✓ Образ удалён${NC}"
     fi
 
@@ -481,8 +522,8 @@ do_update() {
 
     local name="${CONTAINER_NAME:-mtproto}"
 
-    echo -e "${CYAN}➜ Обновление образа nineseconds/mtg...${NC}"
-    docker pull nineseconds/mtg
+    echo -e "${CYAN}➜ Обновление образа ${MTG_IMAGE}...${NC}"
+    docker pull "$MTG_IMAGE"
     echo -e "${GREEN}✓ Образ обновлён${NC}"
 
     stop_existing_container "$name"
@@ -493,7 +534,7 @@ do_update() {
         --restart always \
         -p "${EXT_PORT}:${INTERNAL_PORT}" \
         --dns "$DNS_SERVER" \
-        nineseconds/mtg simple-run \
+        "$MTG_IMAGE" simple-run \
         -n "$DNS_SERVER" \
         -i "$IP_PREFER" \
         "0.0.0.0:${INTERNAL_PORT}" \
@@ -520,6 +561,9 @@ case "${1:-}" in
     --status|-s)
         do_status
         ;;
+    --doctor|-d)
+        do_doctor
+        ;;
     --show)
         do_show
         ;;
@@ -533,7 +577,8 @@ case "${1:-}" in
         echo "  --auto, -a       Установка без вопросов (значения по умолчанию или из env)"
         echo "  --update, -U     Обновить образ и перезапустить контейнер"
         echo "  --uninstall, -u  Удалить контейнер, образ и конфигурацию"
-        echo "  --status, -s     Показать статус прокси"
+        echo "  --status, -s     Показать статус прокси + диагностика"
+        echo "  --doctor, -d     Диагностика (проверка связи с Telegram DC)"
         echo "  --show           Показать ссылки для подключения и QR-код"
         echo "  --help, -h       Показать эту справку"
         echo ""
@@ -608,8 +653,8 @@ echo -e "${GREEN}✓ Система обновлена${NC}"
 
 install_docker
 
-echo -e "${CYAN}➜ Загрузка образа nineseconds/mtg...${NC}"
-docker pull nineseconds/mtg
+echo -e "${CYAN}➜ Загрузка образа ${MTG_IMAGE}...${NC}"
+docker pull "$MTG_IMAGE"
 echo -e "${GREEN}✓ Образ загружен${NC}"
 
 # ─── Секрет: переиспользование или генерация нового ──────────
@@ -648,7 +693,7 @@ docker run -d \
     --restart always \
     -p "${EXT_PORT}:${INTERNAL_PORT}" \
     --dns "$DNS_SERVER" \
-    nineseconds/mtg simple-run \
+    "$MTG_IMAGE" simple-run \
     -n "$DNS_SERVER" \
     -i "$IP_PREFER" \
     "0.0.0.0:${INTERNAL_PORT}" \
