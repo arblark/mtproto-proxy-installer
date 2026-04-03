@@ -9,6 +9,7 @@ set -e
 
 CONFIG_DIR="/etc/mtproto-proxy"
 CONFIG_FILE="${CONFIG_DIR}/config"
+MTG_TOML="${CONFIG_DIR}/mtg.toml"
 MTG_IMAGE="nineseconds/mtg:2"
 NGINX_CONF="/etc/nginx/sites-available/mtproto-proxy.conf"
 NGINX_CONF_ENABLED="/etc/nginx/sites-enabled/mtproto-proxy.conf"
@@ -301,18 +302,65 @@ start_mtg_container_fake() {
         "$SECRET"
 }
 
+generate_mtg_toml() {
+    local domain="$1"
+    mkdir -p "$CONFIG_DIR"
+
+    cat > "$MTG_TOML" <<TOMLEOF
+secret = "${SECRET}"
+bind-to = "0.0.0.0:${EXT_PORT}"
+prefer-ip = "${IP_PREFER}"
+concurrency = 8192
+tolerate-time-skewness = "5s"
+allow-fallback-on-unknown-dc = false
+
+[domain-fronting]
+port = 8443
+
+[network]
+dns = "https://${DNS_SERVER}"
+
+[network.timeout]
+tcp = "5s"
+http = "10s"
+idle = "1m"
+
+[defense.doppelganger]
+urls = [
+  "https://${domain}/",
+  "https://${domain}/about.html",
+  "https://${domain}/status.html",
+]
+repeats-per-raid = 10
+raid-each = "6h"
+drs = false
+
+[defense.anti-replay]
+enabled = true
+max-size = "1mib"
+error-rate = 0.001
+
+[defense.blocklist]
+enabled = true
+download-concurrency = 2
+urls = [
+  "https://iplists.firehol.org/files/firehol_level1.netset",
+]
+update-each = "24h"
+TOMLEOF
+
+    echo -e "${GREEN}✓ TOML-конфигурация: ${MTG_TOML}${NC}"
+}
+
 start_mtg_container_real() {
+    generate_mtg_toml "$REAL_DOMAIN"
+
     docker run -d \
         --name "$CONTAINER_NAME" \
         --restart always \
         --network host \
-        --dns "$DNS_SERVER" \
-        "$MTG_IMAGE" simple-run \
-        -n "$DNS_SERVER" \
-        -i "$IP_PREFER" \
-        -p 8443 \
-        "0.0.0.0:${EXT_PORT}" \
-        "$SECRET"
+        -v "${MTG_TOML}:/config.toml:ro" \
+        "$MTG_IMAGE" run /config.toml
 }
 
 # ─── Проверки ────────────────────────────────────────────────
@@ -536,65 +584,164 @@ create_stub_website() {
     echo -e "${CYAN}➜ Создание сайта-заглушки...${NC}"
     mkdir -p "$STUB_DIR"
 
-    cat > "${STUB_DIR}/index.html" <<'HTMLEOF'
+    cat > "${STUB_DIR}/index.html" <<HTMLEOF
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Welcome</title>
+    <title>${domain} — Cloud Services</title>
+    <meta name="description" content="Enterprise cloud infrastructure and managed services platform.">
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #0f172a;
-            color: #e2e8f0;
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .container {
-            text-align: center;
-            padding: 2rem;
-        }
-        h1 {
-            font-size: 2.5rem;
-            font-weight: 700;
-            background: linear-gradient(135deg, #60a5fa, #a78bfa);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            margin-bottom: 1rem;
-        }
-        p {
-            font-size: 1.1rem;
-            color: #94a3b8;
-            max-width: 480px;
-            line-height: 1.6;
-        }
-        .status {
-            margin-top: 2rem;
-            padding: 0.75rem 1.5rem;
-            background: rgba(96, 165, 250, 0.1);
-            border: 1px solid rgba(96, 165, 250, 0.2);
-            border-radius: 8px;
-            display: inline-block;
-            font-size: 0.9rem;
-            color: #60a5fa;
-        }
+        *{margin:0;padding:0;box-sizing:border-box}
+        :root{--bg:#0f172a;--surface:#1e293b;--border:#334155;--text:#e2e8f0;--muted:#94a3b8;--accent:#3b82f6;--accent2:#8b5cf6}
+        body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Oxygen,Ubuntu,sans-serif;background:var(--bg);color:var(--text);line-height:1.6;min-height:100vh}
+        .nav{border-bottom:1px solid var(--border);padding:1rem 2rem;display:flex;align-items:center;justify-content:space-between;max-width:1200px;margin:0 auto}
+        .nav-brand{font-size:1.25rem;font-weight:700;color:var(--accent)}
+        .nav-links a{color:var(--muted);text-decoration:none;margin-left:1.5rem;font-size:.9rem;transition:color .2s}
+        .nav-links a:hover{color:var(--text)}
+        .hero{max-width:1200px;margin:0 auto;padding:6rem 2rem 4rem;text-align:center}
+        .hero h1{font-size:3rem;font-weight:800;margin-bottom:1.5rem;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+        .hero p{font-size:1.2rem;color:var(--muted);max-width:640px;margin:0 auto 2rem}
+        .btn{display:inline-block;padding:.75rem 2rem;background:var(--accent);color:#fff;border-radius:8px;text-decoration:none;font-weight:600;font-size:.95rem;transition:opacity .2s}
+        .btn:hover{opacity:.85}
+        .features{max-width:1200px;margin:0 auto;padding:2rem;display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1.5rem}
+        .card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:2rem}
+        .card h3{font-size:1.15rem;margin-bottom:.5rem;color:var(--text)}
+        .card p{font-size:.9rem;color:var(--muted);line-height:1.5}
+        .card .icon{font-size:1.5rem;margin-bottom:1rem;display:block}
+        .stats{max-width:1200px;margin:0 auto;padding:3rem 2rem;display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1.5rem;text-align:center}
+        .stat-num{font-size:2.5rem;font-weight:800;color:var(--accent)}
+        .stat-label{font-size:.85rem;color:var(--muted);margin-top:.25rem}
+        .footer{border-top:1px solid var(--border);max-width:1200px;margin:3rem auto 0;padding:2rem;text-align:center;font-size:.8rem;color:var(--muted)}
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>Service Online</h1>
-        <p>This server is operational. All systems are running normally.</p>
-        <div class="status">Status: Active</div>
-    </div>
+    <nav class="nav">
+        <div class="nav-brand">${domain}</div>
+        <div class="nav-links">
+            <a href="/">Home</a>
+            <a href="/about.html">About</a>
+            <a href="/status.html">Status</a>
+        </div>
+    </nav>
+    <section class="hero">
+        <h1>Cloud Infrastructure Platform</h1>
+        <p>Scalable, secure, and reliable cloud services for modern businesses. Deploy globally in seconds with enterprise-grade infrastructure.</p>
+        <a href="/about.html" class="btn">Learn More</a>
+    </section>
+    <section class="features">
+        <div class="card"><span class="icon">&#9889;</span><h3>High Performance</h3><p>Low-latency network backbone with automatic scaling and load balancing across multiple availability zones worldwide.</p></div>
+        <div class="card"><span class="icon">&#128274;</span><h3>Enterprise Security</h3><p>End-to-end encryption, DDoS protection, Web Application Firewall, and compliance with SOC 2, ISO 27001, and GDPR standards.</p></div>
+        <div class="card"><span class="icon">&#127760;</span><h3>Global CDN</h3><p>Content delivery network spanning 200+ edge locations for ultra-fast content delivery and optimized routing to end users.</p></div>
+        <div class="card"><span class="icon">&#128202;</span><h3>Real-time Analytics</h3><p>Comprehensive monitoring dashboards with custom alerting, log aggregation, and performance metrics for all your services.</p></div>
+        <div class="card"><span class="icon">&#9881;</span><h3>Managed Services</h3><p>Fully managed databases, message queues, object storage, and container orchestration with automatic updates and backups.</p></div>
+        <div class="card"><span class="icon">&#128640;</span><h3>CI/CD Pipeline</h3><p>Integrated deployment pipelines with blue-green deployments, canary releases, and automated rollback capabilities.</p></div>
+    </section>
+    <section class="stats">
+        <div><div class="stat-num">99.99%</div><div class="stat-label">Uptime SLA</div></div>
+        <div><div class="stat-num">200+</div><div class="stat-label">Edge Locations</div></div>
+        <div><div class="stat-num">50ms</div><div class="stat-label">Avg Latency</div></div>
+        <div><div class="stat-num">24/7</div><div class="stat-label">Support</div></div>
+    </section>
+    <footer class="footer">&copy; 2026 ${domain}. All rights reserved. | <a href="/about.html" style="color:var(--muted)">About</a> | <a href="/status.html" style="color:var(--muted)">Status</a></footer>
 </body>
 </html>
 HTMLEOF
 
-    echo -e "${GREEN}✓ Сайт-заглушка создан: ${STUB_DIR}/index.html${NC}"
+    cat > "${STUB_DIR}/about.html" <<HTMLEOF
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>About — ${domain}</title>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0f172a;color:#e2e8f0;line-height:1.6;min-height:100vh}
+        .nav{border-bottom:1px solid #334155;padding:1rem 2rem;display:flex;align-items:center;justify-content:space-between;max-width:1200px;margin:0 auto}
+        .nav-brand{font-size:1.25rem;font-weight:700;color:#3b82f6}
+        .nav-links a{color:#94a3b8;text-decoration:none;margin-left:1.5rem;font-size:.9rem}
+        .content{max-width:720px;margin:0 auto;padding:4rem 2rem}
+        h1{font-size:2rem;font-weight:700;margin-bottom:1.5rem}
+        p{color:#94a3b8;margin-bottom:1rem;font-size:1rem}
+        h2{font-size:1.3rem;margin:2rem 0 1rem;color:#e2e8f0}
+        ul{margin-left:1.5rem;color:#94a3b8}
+        li{margin-bottom:.5rem}
+        .footer{border-top:1px solid #334155;max-width:1200px;margin:3rem auto 0;padding:2rem;text-align:center;font-size:.8rem;color:#94a3b8}
+    </style>
+</head>
+<body>
+    <nav class="nav"><div class="nav-brand">${domain}</div><div class="nav-links"><a href="/">Home</a><a href="/about.html">About</a><a href="/status.html">Status</a></div></nav>
+    <div class="content">
+        <h1>About Our Platform</h1>
+        <p>We provide enterprise-grade cloud infrastructure solutions designed for reliability, performance, and security. Our platform powers thousands of applications across the globe, from startups to Fortune 500 companies.</p>
+        <h2>Our Mission</h2>
+        <p>To make cloud infrastructure accessible, reliable, and cost-effective for every organization regardless of size. We believe that world-class infrastructure should not be a privilege reserved for tech giants.</p>
+        <h2>Key Capabilities</h2>
+        <ul>
+            <li>Multi-region deployment with automatic failover and disaster recovery</li>
+            <li>Kubernetes-native orchestration with managed control planes</li>
+            <li>Object storage with S3-compatible API and cross-region replication</li>
+            <li>Managed PostgreSQL, MySQL, and Redis with automatic backups</li>
+            <li>Real-time monitoring, alerting, and log aggregation</li>
+            <li>DDoS protection and Web Application Firewall included</li>
+        </ul>
+        <h2>Infrastructure</h2>
+        <p>Our network spans multiple continents with points of presence in Europe, North America, and Asia-Pacific. All connections are encrypted in transit and at rest using industry-standard protocols.</p>
+    </div>
+    <footer class="footer">&copy; 2026 ${domain}. All rights reserved.</footer>
+</body>
+</html>
+HTMLEOF
+
+    cat > "${STUB_DIR}/status.html" <<HTMLEOF
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Status — ${domain}</title>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0f172a;color:#e2e8f0;line-height:1.6;min-height:100vh}
+        .nav{border-bottom:1px solid #334155;padding:1rem 2rem;display:flex;align-items:center;justify-content:space-between;max-width:1200px;margin:0 auto}
+        .nav-brand{font-size:1.25rem;font-weight:700;color:#3b82f6}
+        .nav-links a{color:#94a3b8;text-decoration:none;margin-left:1.5rem;font-size:.9rem}
+        .content{max-width:720px;margin:0 auto;padding:4rem 2rem}
+        h1{font-size:2rem;font-weight:700;margin-bottom:.5rem}
+        .subtitle{color:#94a3b8;margin-bottom:2rem}
+        .service{display:flex;align-items:center;justify-content:space-between;padding:1rem 1.25rem;background:#1e293b;border:1px solid #334155;border-radius:8px;margin-bottom:.75rem}
+        .service-name{font-weight:500}
+        .badge{padding:.25rem .75rem;border-radius:20px;font-size:.8rem;font-weight:600}
+        .badge-ok{background:rgba(34,197,94,.15);color:#22c55e}
+        .badge-warn{background:rgba(250,204,21,.15);color:#facc15}
+        .uptime{margin-top:2rem;text-align:center;padding:1.5rem;background:#1e293b;border:1px solid #334155;border-radius:8px}
+        .uptime-num{font-size:2.5rem;font-weight:800;color:#22c55e}
+        .uptime-label{color:#94a3b8;font-size:.9rem}
+        .footer{border-top:1px solid #334155;max-width:1200px;margin:3rem auto 0;padding:2rem;text-align:center;font-size:.8rem;color:#94a3b8}
+    </style>
+</head>
+<body>
+    <nav class="nav"><div class="nav-brand">${domain}</div><div class="nav-links"><a href="/">Home</a><a href="/about.html">About</a><a href="/status.html">Status</a></div></nav>
+    <div class="content">
+        <h1>System Status</h1>
+        <p class="subtitle">All systems operational</p>
+        <div class="service"><span class="service-name">API Gateway</span><span class="badge badge-ok">Operational</span></div>
+        <div class="service"><span class="service-name">Compute Engine</span><span class="badge badge-ok">Operational</span></div>
+        <div class="service"><span class="service-name">Object Storage</span><span class="badge badge-ok">Operational</span></div>
+        <div class="service"><span class="service-name">Managed Database</span><span class="badge badge-ok">Operational</span></div>
+        <div class="service"><span class="service-name">CDN / Edge Network</span><span class="badge badge-ok">Operational</span></div>
+        <div class="service"><span class="service-name">DNS Services</span><span class="badge badge-ok">Operational</span></div>
+        <div class="service"><span class="service-name">Monitoring</span><span class="badge badge-ok">Operational</span></div>
+        <div class="uptime"><div class="uptime-num">99.99%</div><div class="uptime-label">Uptime — Last 90 days</div></div>
+    </div>
+    <footer class="footer">&copy; 2026 ${domain}. All rights reserved.</footer>
+</body>
+</html>
+HTMLEOF
+
+    echo -e "${GREEN}✓ Сайт-заглушка создан: ${STUB_DIR} (3 страницы)${NC}"
 }
 
 setup_certbot_renewal() {
@@ -723,15 +870,15 @@ run_doctor() {
     echo ""
     echo -e "${BOLD}Диагностика mtg (doctor):${NC}"
     echo -e "${CYAN}──────────────────────────────────────────────────${NC}"
-    local bind_port="$INTERNAL_PORT"
-    if [[ "$TLS_MODE" == "real" ]]; then
-        bind_port="$EXT_PORT"
+    if [[ "$TLS_MODE" == "real" ]] && [[ -f "$MTG_TOML" ]]; then
+        docker exec "$name" /mtg doctor /config.toml 2>&1 || true
+    else
+        docker exec "$name" /mtg doctor --simple-run \
+            -n "$DNS_SERVER" \
+            -i "$IP_PREFER" \
+            "0.0.0.0:${INTERNAL_PORT}" \
+            "$SECRET" 2>&1 || true
     fi
-    docker exec "$name" /mtg doctor --simple-run \
-        -n "$DNS_SERVER" \
-        -i "$IP_PREFER" \
-        "0.0.0.0:${bind_port}" \
-        "$SECRET" 2>&1 || true
     echo -e "${CYAN}──────────────────────────────────────────────────${NC}"
 
     if [[ "$TLS_MODE" == "real" ]]; then
