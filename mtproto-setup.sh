@@ -307,8 +307,6 @@ generate_mtg_toml() {
     mkdir -p "$CONFIG_DIR"
 
     cat > "$MTG_TOML" <<TOMLEOF
-debug = true
-
 secret = "${SECRET}"
 bind-to = "0.0.0.0:${EXT_PORT}"
 prefer-ip = "${IP_PREFER}"
