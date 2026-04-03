@@ -263,13 +263,9 @@ stop_existing_container() {
     fi
 }
 
-generate_secret_faketls() {
+generate_secret() {
     local domain="$1"
-    docker run --rm "$MTG_IMAGE" generate-secret --hex "$domain" 2>/dev/null
-}
-
-generate_secret_simple() {
-    docker run --rm "$MTG_IMAGE" generate-secret --hex 2>/dev/null
+    docker run --rm "$MTG_IMAGE" generate-secret --hex "$domain" 2>&1
 }
 
 wait_for_container() {
@@ -1234,13 +1230,12 @@ if [[ -n "$SAVED_SECRET" && "$SAVED_TLS_MODE" == "$TLS_MODE" ]]; then
 fi
 
 if [[ "$REUSE_SECRET" == false ]]; then
+    local_domain="$FAKE_DOMAIN"
     if [[ "$TLS_MODE" == "real" ]]; then
-        echo -e "${CYAN}➜ Генерация секрета (simple mode для Real-TLS)...${NC}"
-        SECRET=$(generate_secret_simple)
-    else
-        echo -e "${CYAN}➜ Генерация секрета для домена '${FAKE_DOMAIN}'...${NC}"
-        SECRET=$(generate_secret_faketls "$FAKE_DOMAIN")
+        local_domain="$REAL_DOMAIN"
     fi
+    echo -e "${CYAN}➜ Генерация секрета для домена '${local_domain}'...${NC}"
+    SECRET=$(generate_secret "$local_domain")
 
     if [[ -z "$SECRET" ]]; then
         echo -e "${RED}Ошибка: не удалось сгенерировать секрет${NC}"
