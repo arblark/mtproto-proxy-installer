@@ -1,92 +1,90 @@
 # MTProto Proxy Installer
 
-One-script automated MTProto proxy setup for Telegram using [mtg](https://github.com/9seconds/mtg) (Docker).
+Автоматическая установка MTProto прокси для Telegram одним скриптом на базе [mtg v2](https://github.com/9seconds/mtg) (Docker).
 
-Автоматическая установка MTProto прокси для Telegram одним скриптом. Два режима: Fake-TLS и Real-TLS.
+Два режима работы: **Fake-TLS** (быстрая настройка) и **Real-TLS** (максимальная маскировка с реальным доменом, сертификатом и TOML-конфигом).
 
 ---
 
-> **Не хотите разбираться с консолью?** Есть Telegram-бот, который полностью установит и настроит MTProto прокси на вашем сервере — без SSH, без команд, всё через бот. Ссылку на бота можно получить у автора: [@arblark](https://t.me/arblark)
+> **Не хотите разбираться с консолью?** Есть Telegram-бот, который полностью установит и настроит прокси на вашем сервере — без SSH, без команд. Ссылку на бота можно получить у автора: [@arblark](https://t.me/arblark)
 >
-> **Вопросы, помощь, предложения** — пишите в Telegram: [@arblark](https://t.me/arblark)
+> **Вопросы, помощь, предложения** — [@arblark](https://t.me/arblark)
 
 ---
 
-## Features / Возможности
+## Возможности
 
-- **Two TLS modes** — Fake-TLS (стандартный) или Real-TLS (реальный домен + сертификат)
-- **One command** — установка за одну команду на любом свежем VDS/VPS
-- **Interactive** — интерактивный выбор режима, порта, DNS, домена с дефолтами
-- **Auto mode** — неинтерактивный режим для автоматизации (`--auto`)
-- **Real-TLS with TOML config** — полный конфиг mtg с doppelganger, anti-replay, blocklist
-- **Doppelganger** — mtg имитирует TLS-паттерны реального сайта (защита от DPI)
-- **Anti-replay** — защита от active probing (повторного воспроизведения соединений)
-- **IP Blocklist** — автоматическая блокировка известных вредоносных IP (FireHOL)
-- **Auto-detect IP** — автоопределение внешнего IP сервера
-- **Port check** — проверка занятости порта перед запуском
-- **Domain validation** — проверка DNS: домен → IP сервера (Real-TLS) или резолв (Fake-TLS)
-- **Connection verify** — проверка доступности прокси после старта
-- **QR code** — QR-код ссылки прямо в терминале
-- **Docker** — всё работает в контейнере с `--restart always`
-- **Firewall support** — автоматическое открытие порта (UFW + firewalld)
-- **Ready-to-use links** — готовые `https://t.me/proxy` и `tg://proxy` ссылки
-- **Secret persistence** — секрет сохраняется между запусками, ссылки не ломаются
-- **Update & Uninstall** — встроенные команды обновления и удаления
-- **Status & Doctor** — статус, диагностика mtg + nginx + сертификат + порты
-- **Multi-distro** — Debian, Ubuntu, CentOS, Fedora и другие
+- Два режима — Fake-TLS и Real-TLS (TOML-конфиг + nginx + Let's Encrypt)
+- Установка за одну команду на любом свежем VPS/VDS
+- Интерактивный и автоматический (`--auto`) режимы
+- **Real-TLS**: полный TOML-конфиг mtg с doppelganger, anti-replay, blocklist
+- **Doppelganger**: mtg имитирует TLS-паттерны реального сайта для обхода DPI
+- **Anti-replay**: защита от active probing
+- **IP Blocklist**: блокировка вредоносных IP по спискам FireHOL
+- Автоопределение внешнего IP сервера
+- Проверка порта, DNS, доступности прокси после старта
+- QR-код ссылки в терминале
+- Docker-контейнер с `--restart always`
+- Автооткрытие порта в файрволе (UFW + firewalld)
+- Готовые `t.me/proxy` и `tg://proxy` ссылки
+- Секрет сохраняется между запусками
+- Встроенные команды: `--status`, `--doctor`, `--show`, `--update`, `--uninstall`
+- Поддержка Debian, Ubuntu, CentOS, Fedora
 
-## TLS Modes / Режимы TLS
+## Режимы TLS
 
-### Fake-TLS (стандартный)
+### Fake-TLS
 
-Прокси маскируется под HTTPS-соединение к указанному домену (например, apple.com). Не требует реального домена. Используется `simple-run` режим mtg.
+Простой режим. Прокси маскируется под HTTPS-соединение к указанному домену (например `apple.com`). Не требует реального домена. mtg запускается в режиме `simple-run`.
+
+```
+Telegram  ──:443──►  mtg (simple-run)  ──►  Telegram DC
+```
 
 ### Real-TLS (рекомендуемый)
 
-Реальный TLS-сертификат Let's Encrypt для вашего домена. mtg слушает на порту 443 напрямую и использует встроенный механизм domain fronting:
+Продвинутый режим по [рекомендациям автора mtg](https://github.com/9seconds/mtg/blob/master/BEST_PRACTICES.md). mtg работает с полным TOML-конфигом, слушает на порту 443 напрямую (`--network host`) и использует встроенный domain fronting:
 
-- **Telegram-клиент** → mtg:443 → MTProto (прокси работает)
-- **Браузер / цензор** → mtg:443 → domain fronting → nginx:8443 → реальный сайт
-
-mtg сам определяет тип входящего соединения. Если это не MTProto — перенаправляет на nginx, который отдаёт сайт-заглушку с настоящим SSL-сертификатом. Для цензора сервер неотличим от обычного HTTPS-сайта.
-
-Дополнительные защиты в Real-TLS:
-- **Doppelganger** — mtg периодически запрашивает страницы сайта и имитирует их TLS-паттерны
-- **Anti-replay** — кеш отпечатков соединений для защиты от active probing
-- **Blocklist** — автоматическая блокировка IP из списков FireHOL
+- **Telegram-клиент** → mtg:443 → распознаёт MTProto → проксирует к Telegram DC
+- **Браузер / цензор** → mtg:443 → не MTProto → domain fronting → nginx:8443 → сайт с настоящим сертификатом
 
 ```
-Telegram  ──TLS:443──► mtg (--network host) ──► Telegram DC
-Browser   ──TLS:443──► mtg ──domain fronting──► nginx:8443 ──► Сайт-заглушка
-                       nginx:80 ──► HTTP→HTTPS редирект + ACME
+Telegram  ──TLS:443──►  mtg (TOML, --network host)  ──►  Telegram DC
+Browser   ──TLS:443──►  mtg  ──domain fronting──►  nginx:8443  ──►  Сайт-заглушка
+                         nginx:80  ──►  HTTP→HTTPS + ACME challenge
 ```
 
-Требует: домен с A-записью на IP сервера.
+Что делает Real-TLS помимо проксирования:
 
-## Quick Start / Быстрый старт
+| Защита | Описание |
+|---|---|
+| **Doppelganger** | mtg каждые 6 часов запрашивает страницы сайта-заглушки и собирает статистику TLS-пакетов — задержки, размер чанков. Затем имитирует эти паттерны при обслуживании Telegram-клиентов. Для DPI трафик неотличим от обычного HTTPS |
+| **Anti-replay** | Кеш отпечатков соединений. Блокирует повторное воспроизведение перехваченных запросов (active probing) |
+| **Blocklist** | Автоматическая блокировка IP из списков FireHOL (обновление каждые 24 часа) |
+| **Domain fronting** | Не-MTProto запросы прозрачно перенаправляются на nginx:8443, который отвечает реальным сертификатом Let's Encrypt |
 
-### Установка (одна команда)
+Требования: домен с A-записью на IP сервера.
 
-Подключитесь к серверу по SSH и выполните:
+## Быстрый старт
+
+### Одна команда
 
 ```bash
 curl -sSL https://raw.githubusercontent.com/arblark/mtproto-proxy-installer/main/mtproto-setup.sh -o mtproto-setup.sh && chmod +x mtproto-setup.sh && sudo ./mtproto-setup.sh
 ```
 
-Или через `wget`:
+Или через wget:
 
 ```bash
 wget -qO mtproto-setup.sh https://raw.githubusercontent.com/arblark/mtproto-proxy-installer/main/mtproto-setup.sh && chmod +x mtproto-setup.sh && sudo ./mtproto-setup.sh
 ```
 
-Скрипт предложит выбрать режим (Fake-TLS / Real-TLS) и задаст вопросы с дефолтами.
-
 ### Установка Real-TLS (пошагово)
 
-1. Купите VPS/VDS и домен
-2. Направьте A-запись домена на IP сервера
+1. Купите VPS и домен
+2. Направьте A-запись домена на IP сервера (подождите 5–10 минут)
 3. Подключитесь: `ssh root@IP_СЕРВЕРА`
-4. Скачайте и запустите:
+4. Запустите:
 
 ```bash
 curl -sSL https://raw.githubusercontent.com/arblark/mtproto-proxy-installer/main/mtproto-setup.sh -o mtproto-setup.sh
@@ -98,7 +96,7 @@ sudo ./mtproto-setup.sh
 6. Введите домен и email для Let's Encrypt
 7. Скопируйте ссылку или отсканируйте QR-код
 
-### Клонирование
+### Через git clone
 
 ```bash
 git clone https://github.com/arblark/mtproto-proxy-installer.git
@@ -107,112 +105,146 @@ chmod +x mtproto-setup.sh
 sudo ./mtproto-setup.sh
 ```
 
-## Configuration / Параметры
+## Параметры
 
 ### Общие
 
 | Параметр | По умолчанию | Env-переменная | Описание |
 |---|---|---|---|
-| TLS mode | `fake` | `MT_TLS_MODE` | Режим: `fake` или `real` |
-| Server IP | авто | `MT_SERVER_IP` | Внешний IP сервера |
-| External port | `443` | `MT_PORT` | Порт для подключения клиентов |
-| Internal port | `3128` | — | Порт внутри контейнера (только Fake-TLS) |
-| DNS server | `1.1.1.1` | `MT_DNS` | DNS-сервер (DoH в Real-TLS) |
-| IP mode | `prefer-ipv4` | `MT_IP_MODE` | `prefer-ipv4` / `prefer-ipv6` / `only-ipv4` / `only-ipv6` |
-| Container name | `mtproto` | `MT_CONTAINER` | Имя Docker-контейнера |
+| Режим TLS | `fake` | `MT_TLS_MODE` | `fake` или `real` |
+| IP сервера | авто | `MT_SERVER_IP` | Внешний IP |
+| Внешний порт | `443` | `MT_PORT` | Порт для клиентов |
+| Внутренний порт | `3128` | — | Порт внутри контейнера (только Fake-TLS) |
+| DNS | `1.1.1.1` | `MT_DNS` | DNS-сервер (DoH `https://` в Real-TLS) |
+| Режим IP | `prefer-ipv4` | `MT_IP_MODE` | `prefer-ipv4` / `prefer-ipv6` / `only-ipv4` / `only-ipv6` |
+| Контейнер | `mtproto` | `MT_CONTAINER` | Имя Docker-контейнера |
 
 ### Fake-TLS
 
 | Параметр | По умолчанию | Env-переменная | Описание |
 |---|---|---|---|
-| Domain | `apple.com` | `MT_DOMAIN` | Домен маскировки трафика |
+| Домен | `apple.com` | `MT_DOMAIN` | Домен маскировки |
 
 ### Real-TLS
 
 | Параметр | По умолчанию | Env-переменная | Описание |
 |---|---|---|---|
-| Domain | — | `MT_DOMAIN` | Реальный домен (A-запись → IP сервера) |
+| Домен | — | `MT_DOMAIN` | Реальный домен (A-запись → IP сервера) |
 | Email | — | `MT_LE_EMAIL` | Email для Let's Encrypt |
 
-## Commands / Команды
+## Команды
 
 ```bash
 sudo ./mtproto-setup.sh              # интерактивная установка
-sudo ./mtproto-setup.sh --auto       # установка без вопросов
-sudo ./mtproto-setup.sh --status     # статус + диагностика
-sudo ./mtproto-setup.sh --doctor     # диагностика (Telegram DC, nginx, сертификат, порты)
+sudo ./mtproto-setup.sh --auto       # установка без вопросов (из env-переменных)
+sudo ./mtproto-setup.sh --status     # статус контейнера + диагностика
+sudo ./mtproto-setup.sh --doctor     # диагностика mtg (Telegram DC) + nginx + сертификат + порты
 sudo ./mtproto-setup.sh --show       # показать ссылки и QR-код
-sudo ./mtproto-setup.sh --update     # обновить образ и перезапустить
-sudo ./mtproto-setup.sh --uninstall  # удалить всё
+sudo ./mtproto-setup.sh --update     # обновить образ mtg и перезапустить
+sudo ./mtproto-setup.sh --uninstall  # удалить контейнер, конфиг, nginx, сертификат
 sudo ./mtproto-setup.sh --help       # справка
 ```
 
-## Auto Mode / Автоматический режим
-
-### Fake-TLS
+## Автоматический режим
 
 ```bash
+# Fake-TLS
 sudo MT_TLS_MODE=fake MT_DOMAIN=google.com ./mtproto-setup.sh --auto
-```
 
-### Real-TLS
-
-```bash
+# Real-TLS
 sudo MT_TLS_MODE=real MT_DOMAIN=proxy.example.com MT_LE_EMAIL=me@example.com ./mtproto-setup.sh --auto
 ```
 
-## What Gets Installed / Что устанавливается
+## Что устанавливается
 
 ### Fake-TLS
 
-- Docker + образ `nineseconds/mtg:2`
-- qrencode (для QR-кода)
-- Контейнер с port mapping (`-p EXT_PORT:INTERNAL_PORT`)
+| Компонент | Описание |
+|---|---|
+| Docker | Если не установлен |
+| `nineseconds/mtg:2` | Docker-образ mtg v2 |
+| qrencode | Генерация QR-кода в терминале |
+| Контейнер | `-p EXT_PORT:3128`, режим `simple-run` |
 
 ### Real-TLS
 
-- Docker + образ `nineseconds/mtg:2`
-- qrencode (для QR-кода)
-- Контейнер с `--network host` (mtg слушает на порту 443 напрямую)
-- TOML-конфиг mtg (`/etc/mtproto-proxy/mtg.toml`) с doppelganger, anti-replay, blocklist
-- Nginx (порты 80 + 8443 — редирект и HTTPS-сайт)
-- Certbot (Let's Encrypt сертификат)
-- Сайт-заглушка (`/var/www/mtproto-stub/` — 3 страницы)
-- Cron для автообновления сертификата
+| Компонент | Путь / описание |
+|---|---|
+| Docker + `nineseconds/mtg:2` | Docker-образ mtg v2 |
+| qrencode | Генерация QR-кода |
+| Контейнер | `--network host`, режим `run /config.toml` |
+| TOML-конфиг mtg | `/etc/mtproto-proxy/mtg.toml` — secret, bind-to, doppelganger, anti-replay, blocklist, domain-fronting, dns (DoH) |
+| Конфиг скрипта | `/etc/mtproto-proxy/config` — параметры для `--status`, `--update`, `--show` |
+| Nginx | Порт 80 (HTTP→HTTPS + ACME) + порт 8443 (HTTPS-сайт с LE-сертификатом) |
+| Certbot | Получение сертификата Let's Encrypt |
+| Cron | Автообновление сертификата (ежедневно в 3:00) |
+| Сайт-заглушка | `/var/www/mtproto-stub/` — 3 страницы (главная, о компании, статус) |
 
-## How Real-TLS Works / Как работает Real-TLS
+## Как работает Real-TLS
 
-1. **mtg** запускается с `--network host` и слушает на порту 443
-2. Telegram-клиент подключается через Fake-TLS (секрет содержит домен)
-3. mtg распознаёт MTProto-трафик и проксирует его к Telegram DC
-4. Если подключение **не** MTProto (браузер, цензор, бот) — mtg перенаправляет TCP-поток на `127.0.0.1:8443` (domain fronting)
-5. **nginx** на порту 8443 принимает TLS-соединение и отдаёт сайт с реальным сертификатом Let's Encrypt
-6. **nginx** на порту 80 — редирект HTTP→HTTPS + ACME challenge для обновления сертификата
-7. **Doppelganger** — mtg каждые 6 часов запрашивает страницы сайта и собирает статистику TLS-пакетов для имитации
+```
+┌─────────────────────────────────────────────────────┐
+│  VPS                                                │
+│                                                     │
+│  :443   mtg (Docker, --network host)                │
+│         ├─ MTProto? → Telegram DC                   │
+│         └─ Не MTProto? → 127.0.0.1:8443            │
+│                                                     │
+│  :8443  nginx (HTTPS, LE-сертификат)                │
+│         └─ Сайт-заглушка                            │
+│                                                     │
+│  :80    nginx (HTTP)                                │
+│         ├─ /.well-known/acme-challenge → certbot    │
+│         └─ Остальное → 301 redirect на HTTPS        │
+│                                                     │
+│  /etc/mtproto-proxy/mtg.toml                        │
+│         ├─ [defense.doppelganger] — имитация TLS    │
+│         ├─ [defense.anti-replay]  — защита от проб  │
+│         ├─ [defense.blocklist]    — блок вредных IP  │
+│         └─ [domain-fronting] port = 8443            │
+└─────────────────────────────────────────────────────┘
+```
 
-## Safety Checks / Проверки
+1. mtg слушает на порту 443 с `--network host`
+2. Telegram-клиент подключается (секрет содержит закодированный домен)
+3. mtg распознаёт MTProto — проксирует к Telegram DC
+4. Если подключение не MTProto — mtg передаёт TCP-поток на `127.0.0.1:8443` (domain fronting)
+5. nginx на 8443 принимает TLS и отдаёт сайт с реальным сертификатом
+6. Doppelganger каждые 6 часов обходит страницы сайта и калибрует TLS-паттерны
+7. Anti-replay кеширует отпечатки соединений и отклоняет повторы
 
-- **Порт** — перед запуском проверяется, не занят ли порт (Fake-TLS)
-- **Домен (Fake-TLS)** — проверяется DNS-резолв
-- **Домен (Real-TLS)** — проверяется, что A-запись указывает на IP сервера
-- **Контейнер** — retry-loop с 10 попытками
-- **Соединение** — после запуска проверяется доступность порта
-- **Doctor** — диагностика mtg (Telegram DC, DNS/SNI) + nginx + сертификат + порты 443/8443
+## Проверки безопасности
 
-## Secret Persistence / Сохранение секрета
+| Проверка | Когда |
+|---|---|
+| Порт занят | Перед запуском (Fake-TLS) |
+| DNS резолв | Fake-TLS: домен резолвится; Real-TLS: A-запись = IP сервера |
+| Контейнер запустился | Retry-loop, 10 попыток |
+| Порт отвечает | После запуска контейнера |
+| Doctor | `--status` / `--doctor`: Telegram DC, DNS/SNI, nginx, сертификат, порты 443/8443 |
 
-Секрет и параметры сохраняются в `/etc/mtproto-proxy/config`. При повторном запуске скрипт предложит переиспользовать существующий секрет — клиентские ссылки не сломаются.
+## Сохранение секрета
 
-## Requirements / Требования
+Секрет и все параметры сохраняются в `/etc/mtproto-proxy/config`. При повторном запуске скрипт предложит переиспользовать секрет — клиентские ссылки не сломаются.
 
-- Linux (Debian / Ubuntu / CentOS / Fedora / и др.)
-- Root-доступ (sudo)
+TOML-конфиг mtg хранится в `/etc/mtproto-proxy/mtg.toml` и перегенерируется при каждой установке или `--update`.
+
+## Требования
+
+- Linux (Debian, Ubuntu, CentOS, Fedora и др.)
+- Root-доступ
 - Доступ в интернет
 - Для Real-TLS: домен с A-записью на IP сервера
 
+## Полезные ссылки
+
+- [mtg — GitHub](https://github.com/9seconds/mtg)
+- [Best Practices (mtg)](https://github.com/9seconds/mtg/blob/master/BEST_PRACTICES.md) — рекомендации автора по настройке
+- [Пример TOML-конфига (mtg)](https://github.com/9seconds/mtg/blob/master/example.config.toml)
+
 ## Keywords
 
-MTProto, MTProto proxy, Telegram proxy, mtg, mtg proxy, fake-tls, real-tls, doppelganger, anti-replay, domain fronting, Telegram MTProto, proxy installer, VPS proxy, VDS proxy, обход блокировок, Telegram unblock, MTProto setup, Docker proxy, one-click proxy, Telegram proxy server, QR code proxy, Let's Encrypt
+MTProto, MTProto proxy, Telegram proxy, mtg, mtg proxy, mtg toml, fake-tls, real-tls, doppelganger, anti-replay, domain fronting, blocklist, Telegram MTProto, proxy installer, VPS proxy, VDS proxy, обход блокировок, Telegram unblock, MTProto setup, Docker proxy, one-click proxy, Telegram proxy server, QR code proxy, Let's Encrypt, nginx
 
 ## License
 
