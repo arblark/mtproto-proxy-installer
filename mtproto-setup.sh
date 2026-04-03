@@ -307,12 +307,14 @@ generate_mtg_toml() {
     mkdir -p "$CONFIG_DIR"
 
     cat > "$MTG_TOML" <<TOMLEOF
+debug = true
+
 secret = "${SECRET}"
 bind-to = "0.0.0.0:${EXT_PORT}"
 prefer-ip = "${IP_PREFER}"
 concurrency = 8192
 tolerate-time-skewness = "5s"
-allow-fallback-on-unknown-dc = false
+allow-fallback-on-unknown-dc = true
 
 [domain-fronting]
 port = 8443
@@ -321,9 +323,9 @@ port = 8443
 dns = "https://${DNS_SERVER}"
 
 [network.timeout]
-tcp = "5s"
-http = "10s"
-idle = "1m"
+tcp = "10s"
+http = "15s"
+idle = "2m"
 
 [defense.doppelganger]
 urls = [
