@@ -305,12 +305,13 @@ start_mtg_container_real() {
     docker run -d \
         --name "$CONTAINER_NAME" \
         --restart always \
-        -p "127.0.0.1:${INTERNAL_PORT}:${INTERNAL_PORT}" \
+        --network host \
         --dns "$DNS_SERVER" \
         "$MTG_IMAGE" simple-run \
         -n "$DNS_SERVER" \
         -i "$IP_PREFER" \
-        "0.0.0.0:${INTERNAL_PORT}" \
+        -p 8443 \
+        "0.0.0.0:${EXT_PORT}" \
         "$SECRET"
 }
 
@@ -471,11 +472,14 @@ obtain_certificate() {
 
 configure_nginx_real_tls() {
     local domain="$1"
-    local mtg_port="$2"
 
     echo -e "${CYAN}➜ Настройка Nginx (Real-TLS)...${NC}"
 
     rm -f /etc/nginx/sites-enabled/default 2>/dev/null || true
+
+    local stream_dir="/etc/nginx/modules-enabled"
+    [[ ! -d "$stream_dir" ]] && stream_dir="/etc/nginx/conf.d"
+    rm -f "${stream_dir}/mtproto-stream.conf" 2>/dev/null || true
 
     cat > "$NGINX_CONF" <<NGINXEOF
 server {
@@ -516,60 +520,14 @@ NGINXEOF
         ln -sf "$NGINX_CONF" "$NGINX_CONF_ENABLED"
     fi
 
-    local stream_dir="/etc/nginx/modules-enabled"
-    if [[ ! -d "$stream_dir" ]]; then
-        stream_dir="/etc/nginx/conf.d"
-    fi
-
-    cat > "${stream_dir}/mtproto-stream.conf" <<STREAMEOF
-stream {
-    upstream mtproto_backend {
-        server 127.0.0.1:${mtg_port};
-    }
-
-    upstream web_backend {
-        server 127.0.0.1:8443;
-    }
-
-    map \$ssl_preread_server_name \$backend {
-        ${domain}    web_backend;
-        default      mtproto_backend;
-    }
-
-    server {
-        listen 443;
-        listen [::]:443;
-        proxy_pass \$backend;
-        ssl_preread on;
-    }
-}
-STREAMEOF
-
-    if ! grep -q "load_module.*ngx_stream_module" /etc/nginx/nginx.conf 2>/dev/null; then
-        if [[ -f /usr/lib/nginx/modules/ngx_stream_module.so ]] || [[ -f /usr/lib64/nginx/modules/ngx_stream_module.so ]]; then
-            local module_path="/usr/lib/nginx/modules/ngx_stream_module.so"
-            [[ -f /usr/lib64/nginx/modules/ngx_stream_module.so ]] && module_path="/usr/lib64/nginx/modules/ngx_stream_module.so"
-
-            if ! grep -q "stream" /etc/nginx/nginx.conf 2>/dev/null; then
-                sed -i "1i load_module ${module_path};" /etc/nginx/nginx.conf
-            fi
-        fi
-    fi
-
-    if grep -q "^stream {" /etc/nginx/nginx.conf 2>/dev/null; then
-        echo -e "${YELLOW}⚠ Обнаружен блок stream в nginx.conf — возможен конфликт. Проверьте вручную.${NC}"
-    fi
-
     nginx -t 2>&1
     if [[ $? -ne 0 ]]; then
-        echo -e "${RED}✗ Ошибка конфигурации Nginx. Проверьте:${NC}"
-        echo -e "  ${NGINX_CONF}"
-        echo -e "  ${stream_dir}/mtproto-stream.conf"
+        echo -e "${RED}✗ Ошибка конфигурации Nginx${NC}"
         exit 1
     fi
 
     systemctl restart nginx
-    echo -e "${GREEN}✓ Nginx настроен и перезапущен${NC}"
+    echo -e "${GREEN}✓ Nginx настроен (порт 80 + 8443), mtg на порту ${EXT_PORT}${NC}"
 }
 
 create_stub_website() {
@@ -642,8 +600,7 @@ HTMLEOF
 setup_certbot_renewal() {
     echo -e "${CYAN}➜ Настройка автообновления сертификата...${NC}"
 
-    local renew_hook="systemctl reload nginx"
-    local cron_line="0 3 * * * certbot renew --quiet --deploy-hook \"${renew_hook}\""
+    local cron_line="0 3 * * * certbot renew --quiet --pre-hook \"systemctl stop nginx\" --post-hook \"systemctl start nginx\" --deploy-hook \"systemctl reload nginx\""
 
     if ! crontab -l 2>/dev/null | grep -q "certbot renew"; then
         (crontab -l 2>/dev/null; echo "$cron_line") | crontab -
@@ -766,10 +723,14 @@ run_doctor() {
     echo ""
     echo -e "${BOLD}Диагностика mtg (doctor):${NC}"
     echo -e "${CYAN}──────────────────────────────────────────────────${NC}"
+    local bind_port="$INTERNAL_PORT"
+    if [[ "$TLS_MODE" == "real" ]]; then
+        bind_port="$EXT_PORT"
+    fi
     docker exec "$name" /mtg doctor --simple-run \
         -n "$DNS_SERVER" \
         -i "$IP_PREFER" \
-        "0.0.0.0:${INTERNAL_PORT}" \
+        "0.0.0.0:${bind_port}" \
         "$SECRET" 2>&1 || true
     echo -e "${CYAN}──────────────────────────────────────────────────${NC}"
 
@@ -816,6 +777,18 @@ run_doctor() {
             else
                 echo -e "  ${RED}✗ DNS: ${REAL_DOMAIN} не резолвится${NC}"
             fi
+        fi
+
+        if (echo >/dev/tcp/127.0.0.1/443) 2>/dev/null; then
+            echo -e "  ${GREEN}✓ Порт 443 (mtg): слушает${NC}"
+        else
+            echo -e "  ${RED}✗ Порт 443 (mtg): не отвечает${NC}"
+        fi
+
+        if (echo >/dev/tcp/127.0.0.1/8443) 2>/dev/null; then
+            echo -e "  ${GREEN}✓ Порт 8443 (nginx/сайт): слушает${NC}"
+        else
+            echo -e "  ${RED}✗ Порт 8443 (nginx/сайт): не отвечает${NC}"
         fi
 
         echo -e "${CYAN}──────────────────────────────────────────────────${NC}"
@@ -1140,7 +1113,11 @@ fi
 
 prompt_value SERVER_IP      "  IP сервера"                      "${MT_SERVER_IP:-$SERVER_IP}"
 prompt_value EXT_PORT       "  Внешний порт"                    "${MT_PORT:-${EXT_PORT:-443}}"
-prompt_value INTERNAL_PORT  "  Внутренний порт контейнера"      "${INTERNAL_PORT:-3128}"
+if [[ "${TLS_MODE:-fake}" != "real" ]]; then
+    prompt_value INTERNAL_PORT  "  Внутренний порт контейнера"  "${INTERNAL_PORT:-3128}"
+else
+    INTERNAL_PORT="${INTERNAL_PORT:-3128}"
+fi
 prompt_value DNS_SERVER     "  DNS сервер"                      "${MT_DNS:-${DNS_SERVER:-1.1.1.1}}"
 prompt_value IP_PREFER      "  Режим IP (prefer-ipv4/prefer-ipv6/only-ipv4/only-ipv6)" "${MT_IP_MODE:-${IP_PREFER:-prefer-ipv4}}"
 prompt_value CONTAINER_NAME "  Имя контейнера"                  "${MT_CONTAINER:-${CONTAINER_NAME:-mtproto}}"
@@ -1176,6 +1153,10 @@ if [[ "$TLS_MODE" == "fake" ]]; then
     validate_domain "$FAKE_DOMAIN"
 else
     validate_domain_points_to_server "$REAL_DOMAIN" "$SERVER_IP"
+fi
+
+if [[ "$TLS_MODE" == "real" ]]; then
+    echo -e "${CYAN}ℹ Real-TLS: mtg будет на порту ${EXT_PORT}, nginx на портах 80 и 8443${NC}"
 fi
 
 # ─── Обновление системы ──────────────────────────────────────
@@ -1243,6 +1224,15 @@ if [[ "$REUSE_SECRET" == false ]]; then
 fi
 echo -e "${GREEN}✓ Секрет: ${SECRET}${NC}"
 
+# ─── Nginx (Real-TLS) — настройка до запуска mtg ─────────────
+
+if [[ "$TLS_MODE" == "real" ]]; then
+    systemctl stop nginx 2>/dev/null || true
+    create_stub_website "$REAL_DOMAIN"
+    configure_nginx_real_tls "$REAL_DOMAIN"
+    setup_certbot_renewal
+fi
+
 # ─── Запуск контейнера ───────────────────────────────────────
 
 stop_existing_container "$CONTAINER_NAME"
@@ -1256,14 +1246,6 @@ fi
 
 if ! wait_for_container "$CONTAINER_NAME"; then
     exit 1
-fi
-
-# ─── Nginx (Real-TLS) ────────────────────────────────────────
-
-if [[ "$TLS_MODE" == "real" ]]; then
-    create_stub_website "$REAL_DOMAIN"
-    configure_nginx_real_tls "$REAL_DOMAIN" "$INTERNAL_PORT"
-    setup_certbot_renewal
 fi
 
 # ─── Проверка соединения ─────────────────────────────────────
