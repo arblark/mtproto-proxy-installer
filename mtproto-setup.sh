@@ -289,20 +289,44 @@ wait_for_container() {
     return 1
 }
 
-start_mtg_container_fake() {
-    docker run -d \
-        --name "$CONTAINER_NAME" \
-        --restart always \
-        -p "${EXT_PORT}:${INTERNAL_PORT}" \
-        --dns "$DNS_SERVER" \
-        "$MTG_IMAGE" simple-run \
-        -n "$DNS_SERVER" \
-        -i "$IP_PREFER" \
-        "0.0.0.0:${INTERNAL_PORT}" \
-        "$SECRET"
+generate_mtg_toml_fake() {
+    local domain="$1"
+    mkdir -p "$CONFIG_DIR"
+
+    cat > "$MTG_TOML" <<TOMLEOF
+secret = "${SECRET}"
+bind-to = "0.0.0.0:${INTERNAL_PORT}"
+prefer-ip = "${IP_PREFER}"
+concurrency = 8192
+tolerate-time-skewness = "5s"
+allow-fallback-on-unknown-dc = true
+
+[network]
+dns = "https://${DNS_SERVER}"
+
+[network.timeout]
+tcp = "10s"
+http = "15s"
+idle = "2m"
+
+[defense.anti-replay]
+enabled = true
+max-size = "1mib"
+error-rate = 0.001
+
+[defense.blocklist]
+enabled = true
+download-concurrency = 2
+urls = [
+  "https://iplists.firehol.org/files/firehol_level1.netset",
+]
+update-each = "24h"
+TOMLEOF
+
+    echo -e "${GREEN}✓ TOML-конфигурация: ${MTG_TOML}${NC}"
 }
 
-generate_mtg_toml() {
+generate_mtg_toml_real() {
     local domain="$1"
     mkdir -p "$CONFIG_DIR"
 
@@ -352,8 +376,19 @@ TOMLEOF
     echo -e "${GREEN}✓ TOML-конфигурация: ${MTG_TOML}${NC}"
 }
 
+start_mtg_container_fake() {
+    generate_mtg_toml_fake "$FAKE_DOMAIN"
+
+    docker run -d \
+        --name "$CONTAINER_NAME" \
+        --restart always \
+        -p "${EXT_PORT}:${INTERNAL_PORT}" \
+        -v "${MTG_TOML}:/config.toml:ro" \
+        "$MTG_IMAGE" run /config.toml
+}
+
 start_mtg_container_real() {
-    generate_mtg_toml "$REAL_DOMAIN"
+    generate_mtg_toml_real "$REAL_DOMAIN"
 
     docker run -d \
         --name "$CONTAINER_NAME" \
@@ -862,15 +897,7 @@ run_doctor() {
     echo ""
     echo -e "${BOLD}Диагностика mtg (doctor):${NC}"
     echo -e "${CYAN}──────────────────────────────────────────────────${NC}"
-    if [[ "$TLS_MODE" == "real" ]] && [[ -f "$MTG_TOML" ]]; then
-        docker exec "$name" /mtg doctor /config.toml 2>&1 || true
-    else
-        docker exec "$name" /mtg doctor --simple-run \
-            -n "$DNS_SERVER" \
-            -i "$IP_PREFER" \
-            "0.0.0.0:${INTERNAL_PORT}" \
-            "$SECRET" 2>&1 || true
-    fi
+    docker exec "$name" /mtg doctor /config.toml 2>&1 || true
     echo -e "${CYAN}──────────────────────────────────────────────────${NC}"
 
     if [[ "$TLS_MODE" == "real" ]]; then
