@@ -1209,7 +1209,7 @@ case "${1:-}" in
         echo "  MT_DOMAIN        Домен маскировки / реальный домен"
         echo "  MT_LE_EMAIL      Email для Let's Encrypt (Real-TLS)"
         echo "  MT_DNS           DNS сервер (по умолчанию: 1.1.1.1)"
-        echo "  MT_IP_MODE       Режим IP (по умолчанию: prefer-ipv4)"
+        echo "  MT_IP_MODE       Режим IP (по умолчанию: prefer-ipv6)"
         echo "  MT_CONTAINER     Имя контейнера (по умолчанию: mtproto)"
         exit 0
         ;;
@@ -1285,7 +1285,7 @@ else
     INTERNAL_PORT="${INTERNAL_PORT:-3128}"
 fi
 prompt_value DNS_SERVER     "  DNS сервер"                      "${MT_DNS:-${DNS_SERVER:-1.1.1.1}}"
-prompt_value IP_PREFER      "  Режим IP (prefer-ipv4/prefer-ipv6/only-ipv4/only-ipv6)" "${MT_IP_MODE:-${IP_PREFER:-prefer-ipv4}}"
+prompt_value IP_PREFER      "  Режим IP (prefer-ipv6/prefer-ipv4/only-ipv4/only-ipv6)" "${MT_IP_MODE:-${IP_PREFER:-prefer-ipv6}}"
 prompt_value CONTAINER_NAME "  Имя контейнера"                  "${MT_CONTAINER:-${CONTAINER_NAME:-mtproto}}"
 
 # ─── Параметры режима ────────────────────────────────────────

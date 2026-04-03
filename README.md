@@ -152,7 +152,7 @@ sudo ./mtproto-setup.sh
 | Внешний порт    | `443`         | `MT_PORT`      | Порт для клиентов                                         |
 | Внутренний порт | `3128`        | —              | Порт внутри контейнера (только Fake-TLS)                  |
 | DNS             | `1.1.1.1`     | `MT_DNS`       | DNS-сервер (DoH `https://` в Real-TLS)                    |
-| Режим IP        | `prefer-ipv4` | `MT_IP_MODE`   | `prefer-ipv4` / `prefer-ipv6` / `only-ipv4` / `only-ipv6` |
+| Режим IP        | `prefer-ipv6` | `MT_IP_MODE`   | `prefer-ipv6` / `prefer-ipv4` / `only-ipv4` / `only-ipv6` |
 | Контейнер       | `mtproto`     | `MT_CONTAINER` | Имя Docker-контейнера                                     |
 
 
