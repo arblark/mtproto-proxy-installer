@@ -1176,7 +1176,6 @@ if [[ "$TLS_MODE" == "fake" ]]; then
     validate_domain "$FAKE_DOMAIN"
 else
     validate_domain_points_to_server "$REAL_DOMAIN" "$SERVER_IP"
-    check_port_available 80
 fi
 
 # ─── Обновление системы ──────────────────────────────────────
