@@ -586,157 +586,149 @@ create_stub_website() {
 
     cat > "${STUB_DIR}/index.html" <<HTMLEOF
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>${domain} — Cloud Services</title>
-    <meta name="description" content="Enterprise cloud infrastructure and managed services platform.">
+    <title>${domain}</title>
+    <meta name="description" content="Цифровые решения для бизнеса. Хостинг, облачные сервисы, техническая поддержка.">
     <style>
         *{margin:0;padding:0;box-sizing:border-box}
-        :root{--bg:#0f172a;--surface:#1e293b;--border:#334155;--text:#e2e8f0;--muted:#94a3b8;--accent:#3b82f6;--accent2:#8b5cf6}
-        body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Oxygen,Ubuntu,sans-serif;background:var(--bg);color:var(--text);line-height:1.6;min-height:100vh}
-        .nav{border-bottom:1px solid var(--border);padding:1rem 2rem;display:flex;align-items:center;justify-content:space-between;max-width:1200px;margin:0 auto}
-        .nav-brand{font-size:1.25rem;font-weight:700;color:var(--accent)}
-        .nav-links a{color:var(--muted);text-decoration:none;margin-left:1.5rem;font-size:.9rem;transition:color .2s}
-        .nav-links a:hover{color:var(--text)}
-        .hero{max-width:1200px;margin:0 auto;padding:6rem 2rem 4rem;text-align:center}
-        .hero h1{font-size:3rem;font-weight:800;margin-bottom:1.5rem;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
-        .hero p{font-size:1.2rem;color:var(--muted);max-width:640px;margin:0 auto 2rem}
-        .btn{display:inline-block;padding:.75rem 2rem;background:var(--accent);color:#fff;border-radius:8px;text-decoration:none;font-weight:600;font-size:.95rem;transition:opacity .2s}
-        .btn:hover{opacity:.85}
-        .features{max-width:1200px;margin:0 auto;padding:2rem;display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1.5rem}
-        .card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:2rem}
-        .card h3{font-size:1.15rem;margin-bottom:.5rem;color:var(--text)}
-        .card p{font-size:.9rem;color:var(--muted);line-height:1.5}
-        .card .icon{font-size:1.5rem;margin-bottom:1rem;display:block}
-        .stats{max-width:1200px;margin:0 auto;padding:3rem 2rem;display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1.5rem;text-align:center}
-        .stat-num{font-size:2.5rem;font-weight:800;color:var(--accent)}
-        .stat-label{font-size:.85rem;color:var(--muted);margin-top:.25rem}
-        .footer{border-top:1px solid var(--border);max-width:1200px;margin:3rem auto 0;padding:2rem;text-align:center;font-size:.8rem;color:var(--muted)}
+        body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#fafafa;color:#1a1a1a;line-height:1.7}
+        .nav{border-bottom:1px solid #e5e5e5;padding:.875rem 2rem;display:flex;align-items:center;justify-content:space-between;max-width:960px;margin:0 auto}
+        .nav-brand{font-size:1.1rem;font-weight:600;color:#1a1a1a;text-decoration:none}
+        .nav-links a{color:#737373;text-decoration:none;margin-left:1.5rem;font-size:.875rem}
+        .nav-links a:hover{color:#1a1a1a}
+        .hero{max-width:960px;margin:0 auto;padding:5rem 2rem 3rem}
+        .hero h1{font-size:2.25rem;font-weight:700;margin-bottom:1rem;color:#1a1a1a}
+        .hero p{font-size:1.05rem;color:#525252;max-width:560px;margin-bottom:2rem}
+        .btn{display:inline-block;padding:.625rem 1.5rem;background:#1a1a1a;color:#fff;border-radius:6px;text-decoration:none;font-size:.875rem;font-weight:500}
+        .btn:hover{background:#333}
+        .section{max-width:960px;margin:0 auto;padding:2rem}
+        .section h2{font-size:1.25rem;font-weight:600;margin-bottom:1.5rem;color:#1a1a1a}
+        .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1.25rem}
+        .item{padding:1.5rem;border:1px solid #e5e5e5;border-radius:8px;background:#fff}
+        .item h3{font-size:.95rem;font-weight:600;margin-bottom:.375rem}
+        .item p{font-size:.85rem;color:#737373;line-height:1.5}
+        .footer{border-top:1px solid #e5e5e5;max-width:960px;margin:3rem auto 0;padding:1.5rem 2rem;font-size:.8rem;color:#a3a3a3;text-align:center}
+        .footer a{color:#a3a3a3}
     </style>
 </head>
 <body>
     <nav class="nav">
-        <div class="nav-brand">${domain}</div>
-        <div class="nav-links">
-            <a href="/">Home</a>
-            <a href="/about.html">About</a>
-            <a href="/status.html">Status</a>
-        </div>
+        <a class="nav-brand" href="/">${domain}</a>
+        <div class="nav-links"><a href="/">Главная</a><a href="/about.html">О нас</a><a href="/status.html">Статус</a></div>
     </nav>
     <section class="hero">
-        <h1>Cloud Infrastructure Platform</h1>
-        <p>Scalable, secure, and reliable cloud services for modern businesses. Deploy globally in seconds with enterprise-grade infrastructure.</p>
-        <a href="/about.html" class="btn">Learn More</a>
+        <h1>Цифровая инфраструктура для вашего бизнеса</h1>
+        <p>Надёжный хостинг, облачные серверы и техническая поддержка. Разворачивайте проекты за минуты с гарантией доступности.</p>
+        <a href="/about.html" class="btn">Подробнее</a>
     </section>
-    <section class="features">
-        <div class="card"><span class="icon">&#9889;</span><h3>High Performance</h3><p>Low-latency network backbone with automatic scaling and load balancing across multiple availability zones worldwide.</p></div>
-        <div class="card"><span class="icon">&#128274;</span><h3>Enterprise Security</h3><p>End-to-end encryption, DDoS protection, Web Application Firewall, and compliance with SOC 2, ISO 27001, and GDPR standards.</p></div>
-        <div class="card"><span class="icon">&#127760;</span><h3>Global CDN</h3><p>Content delivery network spanning 200+ edge locations for ultra-fast content delivery and optimized routing to end users.</p></div>
-        <div class="card"><span class="icon">&#128202;</span><h3>Real-time Analytics</h3><p>Comprehensive monitoring dashboards with custom alerting, log aggregation, and performance metrics for all your services.</p></div>
-        <div class="card"><span class="icon">&#9881;</span><h3>Managed Services</h3><p>Fully managed databases, message queues, object storage, and container orchestration with automatic updates and backups.</p></div>
-        <div class="card"><span class="icon">&#128640;</span><h3>CI/CD Pipeline</h3><p>Integrated deployment pipelines with blue-green deployments, canary releases, and automated rollback capabilities.</p></div>
+    <section class="section">
+        <h2>Услуги</h2>
+        <div class="grid">
+            <div class="item"><h3>Облачные серверы</h3><p>Виртуальные машины с выделенными ресурсами, SSD-диски и автоматическое масштабирование под любую нагрузку.</p></div>
+            <div class="item"><h3>Управляемые базы данных</h3><p>PostgreSQL, MySQL и Redis с ежедневным резервным копированием, мониторингом и автоматическими обновлениями.</p></div>
+            <div class="item"><h3>Хостинг сайтов</h3><p>Размещение веб-проектов на быстрых серверах с бесплатным SSL-сертификатом и защитой от DDoS-атак.</p></div>
+            <div class="item"><h3>Доставка контента</h3><p>Сеть кеширующих серверов для ускорения загрузки статических файлов, изображений и видео.</p></div>
+            <div class="item"><h3>Мониторинг</h3><p>Отслеживание состояния сервисов в реальном времени, оповещения и детальная аналитика производительности.</p></div>
+            <div class="item"><h3>Техническая поддержка</h3><p>Круглосуточная помощь специалистов по настройке, миграции и оптимизации инфраструктуры.</p></div>
+        </div>
     </section>
-    <section class="stats">
-        <div><div class="stat-num">99.99%</div><div class="stat-label">Uptime SLA</div></div>
-        <div><div class="stat-num">200+</div><div class="stat-label">Edge Locations</div></div>
-        <div><div class="stat-num">50ms</div><div class="stat-label">Avg Latency</div></div>
-        <div><div class="stat-num">24/7</div><div class="stat-label">Support</div></div>
-    </section>
-    <footer class="footer">&copy; 2026 ${domain}. All rights reserved. | <a href="/about.html" style="color:var(--muted)">About</a> | <a href="/status.html" style="color:var(--muted)">Status</a></footer>
+    <footer class="footer">&copy; 2026 ${domain} | <a href="/about.html">О нас</a> | <a href="/status.html">Статус</a></footer>
 </body>
 </html>
 HTMLEOF
 
     cat > "${STUB_DIR}/about.html" <<HTMLEOF
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>About — ${domain}</title>
+    <title>О компании — ${domain}</title>
     <style>
         *{margin:0;padding:0;box-sizing:border-box}
-        body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0f172a;color:#e2e8f0;line-height:1.6;min-height:100vh}
-        .nav{border-bottom:1px solid #334155;padding:1rem 2rem;display:flex;align-items:center;justify-content:space-between;max-width:1200px;margin:0 auto}
-        .nav-brand{font-size:1.25rem;font-weight:700;color:#3b82f6}
-        .nav-links a{color:#94a3b8;text-decoration:none;margin-left:1.5rem;font-size:.9rem}
-        .content{max-width:720px;margin:0 auto;padding:4rem 2rem}
-        h1{font-size:2rem;font-weight:700;margin-bottom:1.5rem}
-        p{color:#94a3b8;margin-bottom:1rem;font-size:1rem}
-        h2{font-size:1.3rem;margin:2rem 0 1rem;color:#e2e8f0}
-        ul{margin-left:1.5rem;color:#94a3b8}
-        li{margin-bottom:.5rem}
-        .footer{border-top:1px solid #334155;max-width:1200px;margin:3rem auto 0;padding:2rem;text-align:center;font-size:.8rem;color:#94a3b8}
+        body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#fafafa;color:#1a1a1a;line-height:1.7}
+        .nav{border-bottom:1px solid #e5e5e5;padding:.875rem 2rem;display:flex;align-items:center;justify-content:space-between;max-width:960px;margin:0 auto}
+        .nav-brand{font-size:1.1rem;font-weight:600;color:#1a1a1a;text-decoration:none}
+        .nav-links a{color:#737373;text-decoration:none;margin-left:1.5rem;font-size:.875rem}
+        .nav-links a:hover{color:#1a1a1a}
+        .content{max-width:640px;margin:0 auto;padding:3.5rem 2rem}
+        h1{font-size:1.75rem;font-weight:700;margin-bottom:1.25rem}
+        p{color:#525252;margin-bottom:1rem;font-size:.95rem}
+        h2{font-size:1.15rem;font-weight:600;margin:2rem 0 .75rem;color:#1a1a1a}
+        ul{margin-left:1.25rem;color:#525252;font-size:.95rem}
+        li{margin-bottom:.4rem}
+        .footer{border-top:1px solid #e5e5e5;max-width:960px;margin:3rem auto 0;padding:1.5rem 2rem;font-size:.8rem;color:#a3a3a3;text-align:center}
     </style>
 </head>
 <body>
-    <nav class="nav"><div class="nav-brand">${domain}</div><div class="nav-links"><a href="/">Home</a><a href="/about.html">About</a><a href="/status.html">Status</a></div></nav>
+    <nav class="nav"><a class="nav-brand" href="/">${domain}</a><div class="nav-links"><a href="/">Главная</a><a href="/about.html">О нас</a><a href="/status.html">Статус</a></div></nav>
     <div class="content">
-        <h1>About Our Platform</h1>
-        <p>We provide enterprise-grade cloud infrastructure solutions designed for reliability, performance, and security. Our platform powers thousands of applications across the globe, from startups to Fortune 500 companies.</p>
-        <h2>Our Mission</h2>
-        <p>To make cloud infrastructure accessible, reliable, and cost-effective for every organization regardless of size. We believe that world-class infrastructure should not be a privilege reserved for tech giants.</p>
-        <h2>Key Capabilities</h2>
+        <h1>О компании</h1>
+        <p>Мы предоставляем услуги облачного хостинга и управления инфраструктурой с 2019 года. Наша платформа обслуживает компании различного масштаба — от небольших стартапов до крупных корпоративных клиентов.</p>
+        <h2>Наша задача</h2>
+        <p>Сделать надёжную IT-инфраструктуру доступной для каждого. Мы берём на себя всю сложность настройки и обслуживания серверов, чтобы вы могли сосредоточиться на развитии продукта.</p>
+        <h2>Возможности платформы</h2>
         <ul>
-            <li>Multi-region deployment with automatic failover and disaster recovery</li>
-            <li>Kubernetes-native orchestration with managed control planes</li>
-            <li>Object storage with S3-compatible API and cross-region replication</li>
-            <li>Managed PostgreSQL, MySQL, and Redis with automatic backups</li>
-            <li>Real-time monitoring, alerting, and log aggregation</li>
-            <li>DDoS protection and Web Application Firewall included</li>
+            <li>Развёртывание в нескольких регионах с автоматическим переключением при сбоях</li>
+            <li>Оркестрация контейнеров на базе Kubernetes</li>
+            <li>Объектное хранилище с S3-совместимым API</li>
+            <li>Управляемые СУБД: PostgreSQL, MySQL, Redis</li>
+            <li>Мониторинг, логирование и оповещения</li>
+            <li>Встроенная защита от DDoS и WAF</li>
         </ul>
-        <h2>Infrastructure</h2>
-        <p>Our network spans multiple continents with points of presence in Europe, North America, and Asia-Pacific. All connections are encrypted in transit and at rest using industry-standard protocols.</p>
+        <h2>Инфраструктура</h2>
+        <p>Серверы расположены в дата-центрах Европы и работают на отказоустойчивом оборудовании. Все соединения шифруются по стандартным протоколам. Резервное копирование выполняется ежедневно.</p>
     </div>
-    <footer class="footer">&copy; 2026 ${domain}. All rights reserved.</footer>
+    <footer class="footer">&copy; 2026 ${domain}</footer>
 </body>
 </html>
 HTMLEOF
 
     cat > "${STUB_DIR}/status.html" <<HTMLEOF
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Status — ${domain}</title>
+    <title>Статус — ${domain}</title>
     <style>
         *{margin:0;padding:0;box-sizing:border-box}
-        body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0f172a;color:#e2e8f0;line-height:1.6;min-height:100vh}
-        .nav{border-bottom:1px solid #334155;padding:1rem 2rem;display:flex;align-items:center;justify-content:space-between;max-width:1200px;margin:0 auto}
-        .nav-brand{font-size:1.25rem;font-weight:700;color:#3b82f6}
-        .nav-links a{color:#94a3b8;text-decoration:none;margin-left:1.5rem;font-size:.9rem}
-        .content{max-width:720px;margin:0 auto;padding:4rem 2rem}
-        h1{font-size:2rem;font-weight:700;margin-bottom:.5rem}
-        .subtitle{color:#94a3b8;margin-bottom:2rem}
-        .service{display:flex;align-items:center;justify-content:space-between;padding:1rem 1.25rem;background:#1e293b;border:1px solid #334155;border-radius:8px;margin-bottom:.75rem}
-        .service-name{font-weight:500}
-        .badge{padding:.25rem .75rem;border-radius:20px;font-size:.8rem;font-weight:600}
-        .badge-ok{background:rgba(34,197,94,.15);color:#22c55e}
-        .badge-warn{background:rgba(250,204,21,.15);color:#facc15}
-        .uptime{margin-top:2rem;text-align:center;padding:1.5rem;background:#1e293b;border:1px solid #334155;border-radius:8px}
-        .uptime-num{font-size:2.5rem;font-weight:800;color:#22c55e}
-        .uptime-label{color:#94a3b8;font-size:.9rem}
-        .footer{border-top:1px solid #334155;max-width:1200px;margin:3rem auto 0;padding:2rem;text-align:center;font-size:.8rem;color:#94a3b8}
+        body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#fafafa;color:#1a1a1a;line-height:1.7}
+        .nav{border-bottom:1px solid #e5e5e5;padding:.875rem 2rem;display:flex;align-items:center;justify-content:space-between;max-width:960px;margin:0 auto}
+        .nav-brand{font-size:1.1rem;font-weight:600;color:#1a1a1a;text-decoration:none}
+        .nav-links a{color:#737373;text-decoration:none;margin-left:1.5rem;font-size:.875rem}
+        .nav-links a:hover{color:#1a1a1a}
+        .content{max-width:640px;margin:0 auto;padding:3.5rem 2rem}
+        h1{font-size:1.75rem;font-weight:700;margin-bottom:.25rem}
+        .subtitle{color:#737373;margin-bottom:2rem;font-size:.95rem}
+        .service{display:flex;align-items:center;justify-content:space-between;padding:.875rem 1rem;border:1px solid #e5e5e5;border-radius:6px;margin-bottom:.5rem;background:#fff}
+        .service-name{font-size:.9rem;font-weight:500}
+        .badge{padding:.2rem .6rem;border-radius:4px;font-size:.75rem;font-weight:600}
+        .badge-ok{background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0}
+        .summary{margin-top:1.5rem;text-align:center;padding:1.25rem;border:1px solid #e5e5e5;border-radius:6px;background:#fff}
+        .summary-num{font-size:2rem;font-weight:700;color:#16a34a}
+        .summary-label{color:#737373;font-size:.85rem;margin-top:.125rem}
+        .footer{border-top:1px solid #e5e5e5;max-width:960px;margin:3rem auto 0;padding:1.5rem 2rem;font-size:.8rem;color:#a3a3a3;text-align:center}
     </style>
 </head>
 <body>
-    <nav class="nav"><div class="nav-brand">${domain}</div><div class="nav-links"><a href="/">Home</a><a href="/about.html">About</a><a href="/status.html">Status</a></div></nav>
+    <nav class="nav"><a class="nav-brand" href="/">${domain}</a><div class="nav-links"><a href="/">Главная</a><a href="/about.html">О нас</a><a href="/status.html">Статус</a></div></nav>
     <div class="content">
-        <h1>System Status</h1>
-        <p class="subtitle">All systems operational</p>
-        <div class="service"><span class="service-name">API Gateway</span><span class="badge badge-ok">Operational</span></div>
-        <div class="service"><span class="service-name">Compute Engine</span><span class="badge badge-ok">Operational</span></div>
-        <div class="service"><span class="service-name">Object Storage</span><span class="badge badge-ok">Operational</span></div>
-        <div class="service"><span class="service-name">Managed Database</span><span class="badge badge-ok">Operational</span></div>
-        <div class="service"><span class="service-name">CDN / Edge Network</span><span class="badge badge-ok">Operational</span></div>
-        <div class="service"><span class="service-name">DNS Services</span><span class="badge badge-ok">Operational</span></div>
-        <div class="service"><span class="service-name">Monitoring</span><span class="badge badge-ok">Operational</span></div>
-        <div class="uptime"><div class="uptime-num">99.99%</div><div class="uptime-label">Uptime — Last 90 days</div></div>
+        <h1>Статус сервисов</h1>
+        <p class="subtitle">Все системы работают в штатном режиме</p>
+        <div class="service"><span class="service-name">API</span><span class="badge badge-ok">Работает</span></div>
+        <div class="service"><span class="service-name">Виртуальные серверы</span><span class="badge badge-ok">Работает</span></div>
+        <div class="service"><span class="service-name">Объектное хранилище</span><span class="badge badge-ok">Работает</span></div>
+        <div class="service"><span class="service-name">Базы данных</span><span class="badge badge-ok">Работает</span></div>
+        <div class="service"><span class="service-name">CDN</span><span class="badge badge-ok">Работает</span></div>
+        <div class="service"><span class="service-name">DNS</span><span class="badge badge-ok">Работает</span></div>
+        <div class="service"><span class="service-name">Мониторинг</span><span class="badge badge-ok">Работает</span></div>
+        <div class="summary"><div class="summary-num">99.98%</div><div class="summary-label">Доступность за 90 дней</div></div>
     </div>
-    <footer class="footer">&copy; 2026 ${domain}. All rights reserved.</footer>
+    <footer class="footer">&copy; 2026 ${domain}</footer>
 </body>
 </html>
 HTMLEOF
