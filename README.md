@@ -64,6 +64,8 @@ MTProto прокси задумывался как простой инструм
 - Встроенные команды: `--status`, `--doctor`, `--show`, `--update`, `--uninstall`
 - Поддержка Debian, Ubuntu, CentOS, Fedora
 
+> **Нужен AdTag (продвижение канала через прокси)?** mtg v2 не поддерживает adtag. Используйте [Teleproxy Manager](https://github.com/arblark/teleproxy-manager) — установщик MTProto-прокси с поддержкой adtag, нескольких секретов с лимитами, квотами, мониторингом и интерактивным меню управления.
+
 ## Режимы TLS
 
 ### Fake-TLS
