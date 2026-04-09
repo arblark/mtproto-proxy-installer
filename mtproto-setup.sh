@@ -307,7 +307,14 @@ dns = "https://${DNS_SERVER}"
 [network.timeout]
 tcp = "10s"
 http = "15s"
-idle = "2m"
+idle = "5m"
+handshake = "10s"
+
+[network.keep-alive]
+disabled = false
+idle = "15s"
+interval = "15s"
+count = 9
 
 [defense.anti-replay]
 enabled = true
@@ -347,7 +354,14 @@ dns = "https://${DNS_SERVER}"
 [network.timeout]
 tcp = "10s"
 http = "15s"
-idle = "2m"
+idle = "5m"
+handshake = "10s"
+
+[network.keep-alive]
+disabled = false
+idle = "15s"
+interval = "15s"
+count = 9
 
 [defense.doppelganger]
 urls = [

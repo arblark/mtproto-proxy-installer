@@ -56,6 +56,7 @@ MTProto прокси задумывался как простой инструм
 - **Doppelganger**: mtg имитирует TLS-паттерны реального сайта для обхода DPI
 - **Anti-replay**: защита от active probing
 - **IP Blocklist**: блокировка вредоносных IP по спискам FireHOL
+- **TCP Keep-Alive**: настройка keep-alive для стабильности мобильных клиентов
 - Автоопределение внешнего IP сервера
 - Проверка порта, DNS, доступности прокси после старта
 - QR-код ссылки в терминале
@@ -98,6 +99,9 @@ Browser   ──TLS:443──►  mtg  ──domain fronting──►  nginx:844
 | **Anti-replay**     | Кеш отпечатков соединений. Блокирует повторное воспроизведение перехваченных запросов (active probing)                                                                                                                          |
 | **Blocklist**       | Автоматическая блокировка IP из списков FireHOL (обновление каждые 24 часа)                                                                                                                                                     |
 | **Domain fronting** | Не-MTProto запросы прозрачно перенаправляются на nginx:8443, который отвечает реальным сертификатом Let's Encrypt                                                                                                               |
+| **TCP Keep-Alive**  | Поддержание активных соединений для стабильной работы мобильных клиентов (idle 15s, interval 15s)                                                                                                                               |
+| **GREASE fix**      | Корректная обработка GREASE cipher suites в FakeTLS ServerHello — снижает вероятность обнаружения DPI (v2.2.8)                                                                                                                  |
+| **TCP BBR**         | Использование BBR congestion control для оптимальной пропускной способности (v2.2.8)                                                                                                                                            |
 
 
 Требования: домен с A-записью на IP сервера.
@@ -208,7 +212,7 @@ sudo MT_TLS_MODE=real MT_DOMAIN=proxy.example.com MT_LE_EMAIL=me@example.com ./m
 | Docker | Если не установлен |
 | `nineseconds/mtg:2` | Docker-образ mtg v2 |
 | qrencode | Генерация QR-кода в терминале |
-| TOML-конфиг mtg | `/etc/mtproto-proxy/mtg.toml` — secret, anti-replay, blocklist, таймауты |
+| TOML-конфиг mtg | `/etc/mtproto-proxy/mtg.toml` — secret, anti-replay, blocklist, таймауты, keep-alive |
 | Контейнер | `-p EXT_PORT:3128`, режим `run /config.toml` |
 
 
@@ -220,7 +224,7 @@ sudo MT_TLS_MODE=real MT_DOMAIN=proxy.example.com MT_LE_EMAIL=me@example.com ./m
 | Docker + `nineseconds/mtg:2` | Docker-образ mtg v2                                                                                               |
 | qrencode                     | Генерация QR-кода                                                                                                 |
 | Контейнер                    | `--network host`, режим `run /config.toml`                                                                        |
-| TOML-конфиг mtg              | `/etc/mtproto-proxy/mtg.toml` — secret, bind-to, doppelganger, anti-replay, blocklist, domain-fronting, dns (DoH) |
+| TOML-конфиг mtg              | `/etc/mtproto-proxy/mtg.toml` — secret, bind-to, doppelganger, anti-replay, blocklist, domain-fronting, dns (DoH), keep-alive |
 | Конфиг скрипта               | `/etc/mtproto-proxy/config` — параметры для `--status`, `--update`, `--show`                                      |
 | Nginx                        | Порт 80 (HTTP→HTTPS + ACME) + порт 8443 (HTTPS-сайт с LE-сертификатом)                                            |
 | Certbot                      | Получение сертификата Let's Encrypt                                                                               |
@@ -249,6 +253,7 @@ sudo MT_TLS_MODE=real MT_DOMAIN=proxy.example.com MT_LE_EMAIL=me@example.com ./m
 │         ├─ [defense.doppelganger] — имитация TLS    │
 │         ├─ [defense.anti-replay]  — защита от проб  │
 │         ├─ [defense.blocklist]    — блок вредных IP  │
+│         ├─ [network.keep-alive]   — TCP keep-alive  │
 │         └─ [domain-fronting] port = 8443            │
 └─────────────────────────────────────────────────────┘
 ```
